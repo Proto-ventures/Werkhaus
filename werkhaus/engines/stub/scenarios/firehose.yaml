@@ -1,0 +1,155 @@
+name: firehose
+title: Thousands of events in a minute
+outcome: completed
+
+# Not a story — a load test with a plot.
+#
+# A real role emits several hundred events and a real shift emits low thousands.
+# A 40-event happy path teaches the UI that an activity feed is a <ul>. This
+# scenario exists so somebody has to build virtualisation, coalescing and
+# backpressure before shipping, and it belongs in the Playwright suite.
+#
+# 8 roles x 8 activities x 40 repeats = 2560 activity events, plus the rest.
+
+company_name: Northwind Ceramics
+charter:
+  idea: A monthly subscription box for hand-thrown ceramics, from named potters.
+  one_liner: One hand-thrown ceramic object, once a month, from a named potter.
+  audience: UK apartment-dwellers who buy few objects but care what they are.
+  success_looks_like: A live waitlist page with 3 real signups and a defensible price.
+  constraints:
+    - UK only for the first year
+  tone: Quiet, specific, no exclamation marks.
+
+budget_cap: 400.00
+per_shift_cap: 200.00
+
+agenda:
+  - Everything, all at once, very fast
+
+activity_repeat: 40
+tick_seconds: 0.02
+
+work:
+  - role: researcher
+    duration: 12
+    cost: 6.40
+    activities:
+      - is searching for UK ceramics subscription boxes
+      - is reading a competitor's pricing page
+      - is checking whether they name the maker
+      - is opening another tab
+      - is comparing shipping costs
+      - is checking a claim against a second source
+      - is discarding a source that turned out to be a blog post
+      - is writing up what she found
+    says: Six comparable boxes, £18-£45.
+
+  - role: strategist
+    duration: 12
+    cost: 5.10
+    activities:
+      - is reading the competitor table
+      - is testing a positioning line
+      - is throwing that line away
+      - is testing another one
+      - is checking it against the audience note
+      - is naming an alternative to reject
+      - is naming a second one
+      - is writing the positioning down
+    says: The wedge is restraint.
+
+  - role: brand
+    duration: 12
+    cost: 4.20
+    activities:
+      - is reading the positioning note
+      - is drafting a headline
+      - is cutting an adjective
+      - is cutting another adjective
+      - is rewriting the subhead
+      - is checking it against the tone note
+      - is reading it out loud
+      - is writing the waitlist copy
+    says: Draft is in, flat and specific.
+
+  - role: growth
+    duration: 12
+    cost: 4.00
+    activities:
+      - is looking for where this audience is
+      - is reading a subreddit
+      - is checking whether it's makers or buyers
+      - is opening an Instagram tag
+      - is estimating how big it is
+      - is rejecting a channel
+      - is drafting outreach
+      - is marking the outreach unsent
+    says: Three places with links, one rejected.
+
+  - role: analyst
+    duration: 12
+    cost: 3.60
+    activities:
+      - is building the money model
+      - is adding a cost line
+      - is labelling it an assumption
+      - is adding another cost line
+      - is labelling that one too
+      - is checking the arithmetic
+      - is noticing breakage is missing
+      - is writing that down as a gap
+    says: Works at £29 on paper, on guesses.
+
+  - role: engineer
+    duration: 12
+    cost: 9.80
+    activities:
+      - is setting up the site
+      - is building the hero section
+      - is adjusting the spacing
+      - is wiring the waitlist form
+      - is running the build
+      - is fixing a layout issue at 360px
+      - is running the build again
+      - is checking the preview loads
+    says: Site's live at the preview link.
+
+  - role: chief
+    duration: 12
+    cost: 2.40
+    activities:
+      - is checking what got done
+      - is reading the backlog
+      - is closing a finished task
+      - is opening a new one
+      - is reading the objections
+      - is checking the spend
+      - is drafting the shift write-up
+      - is filing the write-up
+    says: Everything's logged.
+
+objections:
+  - severity: serious
+    text: This company produced a great deal of activity and not much evidence.
+    settled_by: Anything sourced from a person rather than a page.
+  - severity: noted
+    text: Nothing here has been checked against a customer.
+    settled_by: Five conversations.
+  - severity: noted
+    text: The money model still has no supplier quotes behind it.
+    settled_by: One quote from a potter.
+
+contests: {}
+
+progress:
+  percent: 58
+  headline: A lot happened. Read Vera before you believe any of it.
+  whats_missing:
+    - No evidence any real person will pay for this
+    - No supplier quotes
+    - Zero waitlist signups
+
+shift_summary: >-
+  A very fast shift with a great deal of activity. The work is real but almost
+  none of it is grounded in anything outside the company's own reasoning.

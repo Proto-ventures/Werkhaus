@@ -1,0 +1,434 @@
+name: happy
+title: A shift where the work lands
+outcome: completed
+
+company_name: Northwind Ceramics
+charter:
+  idea: >-
+    A monthly subscription box for hand-thrown ceramics. One nice object a month,
+    made by a real potter, sent to people who live in small flats and don't want
+    more clutter — just one good thing.
+  one_liner: One hand-thrown ceramic object, once a month, from a named potter.
+  audience: >-
+    UK apartment-dwellers aged 28-45 who buy few objects but care what they are;
+    overlaps heavily with speciality coffee and slow-homeware audiences.
+  success_looks_like: >-
+    A live waitlist page with at least 3 real signups, a priced offer the founder
+    can defend, and evidence that someone other than the founder wants this.
+  constraints:
+    - UK only for the first year — shipping ceramics internationally breaks the margin
+    - Work with existing potters, do not buy a kiln
+    - No paid advertising until the waitlist converts organically
+  tone: Quiet, specific, no exclamation marks. Sounds like a maker, not a marketer.
+
+budget_cap: 60.00
+per_shift_cap: 12.00
+
+agenda:
+  - Check the £29 price against comparable UK subscription boxes
+  - Settle who this is actually for, in one sentence
+  - Get a landing page live with a working waitlist
+  - Find three places the audience already gathers
+
+tick_seconds: 6.0
+
+work:
+  - role: researcher
+    duration: 210
+    cost: 1.28
+    tasks_claimed:
+      - Validate the £29 price against comparable UK boxes
+    activities:
+      - is searching for UK ceramics subscription boxes
+      - is reading pottery-box.co.uk
+      - is reading claycollective.uk
+      - is comparing what six boxes charge and what you actually get
+      - is checking whether any of them name the maker
+      - is writing up what she found
+    tasks_added:
+      - Ask three people in the target audience what they'd pay
+    says: >-
+      Six comparable UK boxes. The band is £18-£45 and the ones above £30 all name
+      the maker — that's the thing you're competing on, not the object. I could not
+      find willingness-to-pay evidence for our specific audience; that needs people,
+      not desk research.
+    artifacts:
+      - path: artifacts/market-research.md
+        title: UK ceramics subscription boxes — what six competitors charge
+        kind: doc
+        confidence: sourced
+        summary: >-
+          Six live UK boxes in the £18-£45 band. Above £30, every one names the
+          maker. Nobody is doing single-object-per-month.
+        sources:
+          - https://pottery-box.co.uk/pricing
+          - https://claycollective.uk/subscribe
+          - https://www.thepotterybox.com/plans
+        body: |
+          # UK ceramics subscription boxes
+
+          Six live boxes found, October pricing, all checked directly on the
+          seller's own page. Two more (Kiln & Co, Studio Nine) appear in search
+          results but their sites are dead — excluded rather than guessed at.
+
+          | Box | Price / mo | What arrives | Names the maker? |
+          |---|---|---|---|
+          | Pottery Box | £18 | 2-3 small pieces, unbranded | No |
+          | Clay Collective | £29 | 1 piece + a zine | Yes |
+          | The Pottery Box | £32 | 1-2 pieces, seasonal | Yes |
+          | Handmade Home | £24 | mixed homeware, not all ceramic | No |
+          | Northern Clay | £45 | 1 large piece, quarterly | Yes |
+          | Muddy Hands | £22 | beginner's kit, not finished goods | n/a |
+
+          ## What the table actually says
+
+          The price band is £18-£45, so £29 sits in the middle — not a stretch.
+          More usefully: **every box above £30 names the potter, and none below
+          £25 does.** Naming the maker looks like the thing that justifies the
+          price, not the object itself.
+
+          Nobody in this set is doing strictly one object per month. Pottery Box
+          and Handmade Home both send multiple small items, which is the opposite
+          of the "one good thing, no clutter" idea. That's a real gap.
+
+          ## What I could not establish
+
+          I have no evidence about **willingness to pay** for our specific
+          audience. Everything above is what sellers ask, not what buyers accept,
+          and I found no churn or conversion data for any of them — none of these
+          are public companies and none publish numbers.
+
+          Treat the £29 figure as "defensible against the market", not as
+          "validated with customers". Those are different claims and only the
+          first one is supported here.
+
+          Two of the six have had a "pause your box" banner up since at least
+          August, which might mean demand problems or might mean a supply
+          constraint. I couldn't tell which and I'm not going to speculate.
+
+  - role: strategist
+    duration: 165
+    cost: 0.91
+    tasks_claimed:
+      - Settle the audience in one sentence
+    activities:
+      - is reading Maya's competitor table
+      - is working out what the actual wedge is
+      - is writing the positioning down
+    says: >-
+      The wedge is restraint — one object, named maker, no clutter. Everyone else
+      sends more stuff. I've priced at £29 and named the two options I rejected,
+      but be clear this is reasoned from Maya's table, not tested on customers.
+    decisions:
+      - title: Price at £29/mo, not £9
+        rationale: >-
+          Maya's table shows every box that names its maker sits above £29, and
+          naming the maker is our whole pitch. £9 would put us below the boxes
+          that send unbranded seconds, which contradicts the positioning and
+          barely covers a hand-thrown piece plus UK shipping.
+        alternatives_rejected:
+          - £9/mo — below the unbranded-seconds tier, breaks the maker story and the margin
+          - £45/mo quarterly — Northern Clay owns that slot and quarterly kills the habit
+        reversible: true
+      - title: Ceramics only — no candles, no "homeware"
+        rationale: >-
+          Handmade Home dilutes into general homeware and is the cheapest box in
+          the set that names nobody. The restraint is the product. Widening the
+          category is how we become them.
+        alternatives_rejected:
+          - Add candles and textiles to raise basket value
+        reversible: true
+    artifacts:
+      - path: artifacts/positioning.md
+        title: Positioning — one object, one maker, no clutter
+        kind: doc
+        confidence: inferred
+        summary: >-
+          The wedge is restraint. Reasoned from the competitor table; not yet
+          tested on a single customer.
+        sources: []
+        body: |
+          # Positioning
+
+          **For** people in small UK flats who buy few objects but care what they
+          are, **Northwind** is a monthly ceramics subscription that sends
+          exactly one hand-thrown piece from a named potter — **unlike** every
+          other UK box, which sends more things and tells you less about who
+          made them.
+
+          ## Why this and not something else
+
+          From Maya's table: the £30+ tier all name the maker; the sub-£25 tier
+          sends multiples and names nobody. So the market has already priced
+          "you know who made this" at roughly a tenner a month. We are selling
+          that, plus restraint.
+
+          "One good thing a month" is also the only version of this that survives
+          the constraint of a small flat, which is the audience we picked.
+
+          ## Confidence
+
+          This is **inferred**. It is a reading of six competitor pages, not of
+          any customer. The specific claim I am least sure of is that restraint is
+          *attractive* rather than merely *cheaper to operate* — those look
+          identical from the outside and I cannot separate them from desk research.
+
+  - role: brand
+    duration: 140
+    cost: 0.62
+    tasks_claimed:
+      - Write the landing page copy
+    activities:
+      - is reading the positioning note
+      - is drafting the headline
+      - is cutting the adjectives back out
+      - is writing the waitlist copy
+    says: >-
+      Draft is in. I've kept it flat and specific per the tone note — no
+      exclamation marks, no "curated". The maker's name is the headline, which is
+      the whole point of the positioning.
+    artifacts:
+      - path: artifacts/landing-copy.md
+        title: Landing page copy — v1
+        kind: doc
+        confidence: inferred
+        summary: Headline, subhead, three sections and the waitlist ask.
+        sources: []
+        body: |
+          # Landing page copy
+
+          ## Hero
+
+          **One pot a month. You'll know who made it.**
+
+          Every month we send a single hand-thrown piece from one potter, with
+          their name on it and a note about what they were trying to do. Not a
+          box of things. One thing.
+
+          £29 a month. UK only, for now. Cancel whenever.
+
+          `[ Join the waitlist ]`
+
+          ## Section — why one
+
+          Most subscription boxes solve for volume, because volume feels like
+          value. If you live in a small flat, volume is the problem. We send one
+          object because one is what fits.
+
+          ## Section — why named
+
+          A pot made by someone whose name you know is a different object from a
+          pot made by nobody in particular. It's the same clay. It isn't the
+          same thing.
+
+          ## Section — what actually arrives
+
+          A mug, a small bowl, a tumbler, a dish. Thrown, not cast. Sometimes
+          slightly wrong, which is how you can tell. Packed in one box that fits
+          through a letterbox where it can.
+
+          ## Waitlist ask
+
+          We're taking a small first run. Leave your email and we'll tell you
+          when it opens — no more than one message a month, and you can leave in
+          one click.
+
+          ---
+
+          *Copy note: I've used "one pot a month" rather than "curated ceramics
+          subscription" because the second one is what the competitors say. If
+          the founder hates "pot", the fallback is "one piece a month".*
+
+  - role: growth
+    duration: 130
+    cost: 0.58
+    tasks_claimed:
+      - Find three places the audience already gathers
+    activities:
+      - is looking for where this audience actually is
+      - is reading r/Pottery and r/UKPersonalFinance crossovers
+      - is checking whether the speciality coffee overlap is real
+      - is drafting outreach that we are not going to send yet
+    says: >-
+      Three places with links, plus a fourth I'd skip. Outreach is drafted and
+      unsent — I don't send anything, ever. The coffee overlap is a hunch and I've
+      labelled it as one.
+    artifacts:
+      - path: artifacts/channels.md
+        title: Where this audience already is
+        kind: doc
+        confidence: sourced
+        summary: >-
+          Three communities with real links and rough sizes, one deliberately
+          rejected, and an untested hunch flagged as such.
+        sources:
+          - https://www.reddit.com/r/Pottery/
+          - https://www.instagram.com/explore/tags/britishpottery/
+          - https://londoncraftweek.com/
+        body: |
+          # Where this audience already is
+
+          ## 1. r/Pottery — worth it, carefully
+
+          Large and active, but it is overwhelmingly *makers*, not buyers. The
+          buyers are there in the "is this worth it" threads. Not a place to
+          advertise; a place to be a named potter talking about work.
+
+          ## 2. #britishpottery on Instagram — the obvious one
+
+          This is where the makers we'd partner with already post. The route in is
+          the potter's audience, not ours — which means partner selection is a
+          marketing decision, not just a supply decision.
+
+          ## 3. London Craft Week and its regional equivalents — highest intent
+
+          People who go to these already buy objects at this price. Slow, offline,
+          small numbers, but the numbers convert.
+
+          ## Rejected: Facebook homeware groups
+
+          Big, cheap to reach, and wrong. The price expectation there is £8 mugs
+          and the conversation is about deals. We'd get signups that churn.
+
+          ## Hunch, not evidence
+
+          I think there's a strong overlap with speciality coffee — same buyer
+          logic, one good object over many cheap ones. **I did not verify this.**
+          It's the sort of thing one afternoon of talking to people would settle,
+          and I'd rather flag it than dress it up.
+
+  - role: analyst
+    duration: 120
+    cost: 0.44
+    tasks_claimed:
+      - Sketch the unit economics at £29
+    activities:
+      - is building the one-page money model
+      - is labelling which numbers are guesses
+    says: >-
+      It works at £29 if the potter takes £11 and shipping stays under £5. Every
+      input is an assumption except the price — I've said so on each line rather
+      than burying it.
+    artifacts:
+      - path: artifacts/unit-economics.md
+        title: Unit economics at £29 — one page
+        kind: table
+        confidence: assumption
+        summary: >-
+          Contribution of about £9.50/box if three unverified assumptions hold.
+          None of the cost inputs come from a real quote.
+        sources: []
+        body: |
+          # Unit economics at £29/month
+
+          **Every cost line below is an assumption. I have not spoken to a potter
+          or a courier.** This is a shape, not a forecast.
+
+          | Line | Per box | Where it came from |
+          |---|---|---|
+          | Price | £29.00 | Decided this shift (Ines) |
+          | Potter cost | £11.00 | **Assumption** — typical wholesale ≈ 40% of retail |
+          | Packaging | £2.20 | **Assumption** — protective packing for one piece |
+          | UK shipping | £4.80 | **Assumption** — tracked, ceramics-safe, no quote yet |
+          | Payments | £1.15 | Stripe 2.9% + 20p, verified from their public pricing |
+          | **Contribution** | **£9.85** | |
+
+          ## What breaks it
+
+          - **Breakage.** Not modelled at all. One replacement in twenty wipes out
+            roughly £1.45/box and I have no idea if one in twenty is right.
+          - **Potter cost.** If a hand-thrown piece is £15 rather than £11,
+            contribution falls to £5.85 and the model needs a price rise.
+          - **Churn.** Not modelled. At £29 with a 6-month life the CAC ceiling is
+            about £59; at 3 months it's £30, which rules out most paid acquisition.
+
+          ## What would make this real
+
+          One quote from one potter and one quote from one courier. That's an
+          afternoon and it would move three of these five lines off "assumption".
+
+  - role: engineer
+    duration: 260
+    cost: 2.31
+    tasks_claimed:
+      - Get a landing page live with a working waitlist
+    activities:
+      - is setting up the site
+      - is building the hero section
+      - is wiring up the waitlist form
+      - is checking it works on a phone
+      - is running the build
+      - is checking the preview loads
+    says: >-
+      Site's live at the preview link. The waitlist form posts to our own endpoint
+      and stores the email — it's real, not a mock. Looks right down to 360px wide.
+    artifacts:
+      - path: artifacts/site
+        title: Northwind Ceramics — landing page
+        kind: site
+        confidence: sourced
+        summary: >-
+          Live, responsive, and the waitlist stores a real email address. The one
+          artifact here that either works or doesn't.
+        preview_url: /preview/northwind/index.html
+        # A site's evidence is that you can go and load it. That is the whole
+        # reason this artifact carries the credibility for the softer ones.
+        sources:
+          - /preview/northwind/index.html
+        body: |
+          # Landing page
+
+          Static site, Otto's copy, one page. The waitlist form posts to our own
+          endpoint — no third-party form service holding the list.
+
+          - Builds clean
+          - Renders down to 360px
+          - Waitlist round-trips a real email and returns a confirmation
+          - Lighthouse: 98 performance, 100 accessibility
+
+objections:
+  - severity: serious
+    about: artifacts/positioning.md
+    text: >-
+      The £29 price is defended entirely with competitor pricing. Not one person
+      in the target audience has been asked what they'd pay. "Defensible against
+      the market" has been quietly upgraded to "validated" between Maya's note and
+      the positioning.
+    settled_by: >-
+      Five conversations with people who match the ICP, asking what they currently
+      spend on objects like this.
+  - severity: serious
+    about: artifacts/unit-economics.md
+    text: >-
+      Contribution of £9.85 rests on three cost lines that are guesses, and
+      breakage — the most likely killer for a business that mails ceramics — isn't
+      in the model at all.
+    settled_by: One real quote from a potter and one from a courier.
+  - severity: noted
+    about: artifacts/channels.md
+    text: >-
+      The speciality-coffee overlap is labelled a hunch, which is honest, but it's
+      also the single cheapest thing on this list to check and nobody was tasked
+      with checking it.
+    settled_by: An afternoon of asking people in one coffee subreddit.
+
+contests:
+  Price at £29/mo, not £9: >-
+    Reasoned from competitor pricing, not from any willingness-to-pay evidence.
+    Defensible, not validated — don't let those blur.
+
+progress:
+  percent: 64
+  headline: Positioning and price are settled and the page is live. Nobody has said they would buy it.
+  whats_missing:
+    - No evidence any real person will pay £29 for this
+    - The cost model has no supplier quotes behind it
+    - Zero waitlist signups. The page only went live this shift
+
+shift_summary: >-
+  Maya priced the market properly and was straight about what she couldn't
+  establish. Ines committed to £29 and to ceramics-only, both with rejected
+  alternatives on the record. Otto's copy is live on a page Kit shipped, and the
+  waitlist genuinely stores an email. Nia's money model works on paper and says
+  loudly that it's built on guesses. Vera's objection is the one to read: every
+  number here is defended against competitors, and not one against a customer.

@@ -1,0 +1,257 @@
+@import 'tailwindcss';
+
+/* Jost is an open Futura-alike — the Bauhaus letterform, and the reason the
+   wordmark is set lowercase (Bayer's universal alphabet had no capitals).
+   Plex Mono keeps the early-web chrome: ids, money, timestamps, tables.
+   Plex Sans carries running prose, because geometric sans is hard to read long. */
+@import '@fontsource/jost/400.css';
+@import '@fontsource/jost/500.css';
+@import '@fontsource/jost/600.css';
+@import '@fontsource/jost/700.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* Light only. Ink on paper, hard rules, flat colour — a dark variant would be
+   a different design, not this one at night. */
+:root {
+  --radius: 0rem;
+
+  --paper: #f3f2f0;
+  --panel: #ffffff;
+  --ink: #121212;
+  --ink-soft: #5a5a5a;
+  --ink-faint: #8e8e8e;
+  --rule: #121212;
+  --rule-soft: #d6d4d0;
+
+  /* The triad, used functionally rather than decoratively. Red is reserved for
+     stop and fatal, which is what makes it mean anything when it appears. */
+  --red: #de3b26;
+  --yellow: #f5c400;
+  --blue: #1740c4;
+
+  --link: var(--blue);
+  --link-visited: #6b2fa0;
+
+  /* Provenance maps straight onto the triad: evidence is blue, a guess is
+     yellow, and reasoning in between is plain black — no claim, no colour. */
+  --sourced: var(--blue);
+  --inferred: #121212;
+  --assumption: #8a6d00;
+  --fatal: var(--red);
+  --serious: #8a6d00;
+  --noted: #5a5a5a;
+
+  /* The painting palette, median-cut sampled from the two canvases on the
+     landing page (Van Gogh 1889, Millet 1868). Used only for the collage
+     planes there, so the shapes are the paintings' own colours. */
+  --wheat-gold: #a88837;
+  --vg-sky: #8eabbc;
+  --cypress: #1c2d1f;
+  --olive: #63632c;
+  --meadow: #4e5c46;
+  --sage: #727a61;
+
+  /* shadcn tokens mapped onto the above so the primitives inherit the theme */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: #e8e6e2;
+  --secondary-foreground: var(--ink);
+  --muted: #e8e6e2;
+  --muted-foreground: var(--ink-soft);
+  --accent: #e8e6e2;
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --border: var(--rule-soft);
+  --input: var(--rule);
+  --ring: var(--blue);
+}
+
+@theme inline {
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
+
+  --font-display: 'Jost', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-rule-soft: var(--rule-soft);
+  --color-red: var(--red);
+  --color-yellow: var(--yellow);
+  --color-blue: var(--blue);
+  --color-link: var(--link);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sourced: var(--sourced);
+  --color-inferred: var(--inferred);
+  --color-assumption: var(--assumption);
+  --color-fatal: var(--fatal);
+  --color-serious: var(--serious);
+  --color-noted: var(--noted);
+
+  --color-wheat-gold: var(--wheat-gold);
+  --color-vg-sky: var(--vg-sky);
+  --color-cypress: var(--cypress);
+  --color-olive: var(--olive);
+  --color-meadow: var(--meadow);
+  --color-sage: var(--sage);
+}
+
+@layer base {
+  * {
+    @apply border-rule-soft outline-ring/60;
+    /* Scrollbars are hidden everywhere; scrolling itself is untouched. */
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    @apply bg-ink text-paper;
+  }
+  a.link:visited {
+    color: var(--link-visited);
+  }
+}
+
+@layer components {
+  /* A bordered box. Heavy black rule, no rounding, no shadow — the wall the
+     whole interface is built out of. */
+  .panel {
+    @apply bg-panel border-rule border;
+  }
+
+  /* Geometric sans, tight, for anything that is a heading or a name. */
+  .display {
+    @apply font-display font-semibold tracking-[-0.015em];
+  }
+
+  /* Stencilled label. Lowercase, because Bayer's universal alphabet was. */
+  .eyebrow {
+    @apply font-display text-[0.75rem] font-medium tracking-[0.09em] lowercase;
+  }
+
+  .numeric {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Flat, hard-edged, no shadow. Bauhaus does not do bevels. */
+  .btn {
+    @apply border-rule bg-panel text-ink font-display inline-flex items-center
+      justify-center gap-2 border px-3.5 py-1.5 text-[0.875rem] font-medium
+      lowercase transition-colors;
+    @apply focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none;
+  }
+  .btn:hover:not(:disabled) {
+    @apply bg-secondary;
+  }
+  .btn:disabled {
+    @apply text-ink-faint border-rule-soft cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-ink text-paper;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-blue border-blue text-white;
+  }
+  .btn-danger:hover:not(:disabled) {
+    @apply bg-red border-red text-white;
+  }
+
+  .link {
+    @apply text-link underline underline-offset-2;
+  }
+
+  /* ---------------------------------------------------------------------
+     The primitives. Circle, square, triangle — the Bauhaus vocabulary, doing
+     actual work rather than decorating: a shape tells you a state, and it
+     still reads when the colour doesn't (printed, colour-blind, greyscale).
+     --------------------------------------------------------------------- */
+  .mark {
+    @apply inline-block size-2.5 shrink-0 align-middle;
+  }
+  .mark-circle {
+    @apply rounded-full;
+  }
+  .mark-square {
+    @apply rounded-none;
+  }
+  .mark-triangle {
+    width: 0;
+    height: 0;
+    background: transparent !important;
+    border-left: 0.3125rem solid transparent;
+    border-right: 0.3125rem solid transparent;
+    border-bottom: 0.5625rem solid currentColor;
+  }
+  .mark-ring {
+    @apply rounded-full border-2 bg-transparent;
+  }
+}
+
+/* The one motion in the product: a working employee breathes. */
+@keyframes werk-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.pulse {
+  animation: werk-pulse 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

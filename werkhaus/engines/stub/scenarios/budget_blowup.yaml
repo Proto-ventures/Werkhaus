@@ -1,0 +1,97 @@
+name: budget_blowup
+title: The company runs out of money mid-shift
+outcome: budget_exceeded
+
+company_name: Northwind Ceramics
+charter:
+  idea: >-
+    A monthly subscription box for hand-thrown ceramics. One nice object a month,
+    from a named potter, for people who don't want more clutter.
+  one_liner: One hand-thrown ceramic object, once a month, from a named potter.
+  audience: UK apartment-dwellers aged 28-45 who buy few objects but care what they are.
+  success_looks_like: >-
+    A live waitlist page with at least 3 real signups and a priced offer the
+    founder can defend.
+  constraints:
+    - UK only for the first year
+  tone: Quiet, specific, no exclamation marks.
+
+# Deliberately tight: the cap is reached during the working phase, not at the end.
+budget_cap: 4.00
+per_shift_cap: 3.00
+
+agenda:
+  - Check the £29 price against comparable UK boxes
+  - Get a landing page live with a working waitlist
+
+tick_seconds: 6.0
+
+work:
+  - role: researcher
+    duration: 200
+    cost: 1.48
+    tasks_claimed:
+      - Validate the £29 price against comparable UK boxes
+    activities:
+      - is searching for UK ceramics subscription boxes
+      - is reading pottery-box.co.uk
+      - is reading claycollective.uk
+      - is comparing what six boxes charge
+      - is writing up what she found
+    says: >-
+      Six comparable boxes, £18-£45. The ones above £30 all name the maker.
+    artifacts:
+      - path: artifacts/market-research.md
+        title: UK ceramics subscription boxes — what six competitors charge
+        kind: doc
+        confidence: sourced
+        summary: Six live UK boxes in the £18-£45 band. Above £30, every one names the maker.
+        sources:
+          - https://pottery-box.co.uk/pricing
+          - https://claycollective.uk/subscribe
+        body: |
+          # UK ceramics subscription boxes
+
+          | Box | Price / mo | Names the maker? |
+          |---|---|---|
+          | Pottery Box | £18 | No |
+          | Clay Collective | £29 | Yes |
+          | Northern Clay | £45 | Yes |
+
+          The band is £18-£45. Above £30, every box names the potter — that looks
+          like what the premium is actually for.
+
+          I have no willingness-to-pay evidence. This is what sellers ask, not
+          what buyers accept.
+
+  # Kit is the expensive one. He is where the cap gets hit — which is realistic:
+  # the builder burns the most tokens and overshoots between iteration checks.
+  - role: engineer
+    duration: 300
+    cost: 2.90
+    tasks_claimed:
+      - Get a landing page live with a working waitlist
+    activities:
+      - is setting up the site
+      - is building the hero section
+      - is wiring up the waitlist form
+      - is retrying a build that failed
+      - is retrying the build again
+    says: null
+
+objections: []
+contests: {}
+
+progress:
+  percent: 22
+  headline: The research landed. The page didn't get finished before the money ran out.
+  whats_missing:
+    - The landing page was half-built when the shift stopped
+    - Nothing has been reviewed — the shift ended before Vera could look at it
+    - No pricing decision was made
+
+shift_summary: >-
+  Maya finished her competitor research and it's good. Kit got about halfway
+  through the landing page before the company hit its spending cap and everything
+  stopped. Nothing was lost — the research is saved and the half-built page is
+  still there. Raise the cap and the next shift picks up where this one stopped.

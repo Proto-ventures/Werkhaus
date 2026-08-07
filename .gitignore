@@ -1,0 +1,32 @@
+# The OpenHands SDK is a READ-ONLY reference checkout, not a dependency.
+# We pin openhands-sdk / openhands-tools from PyPI (see pyproject.toml).
+# Re-create it with:
+#   git clone https://github.com/OpenHands/software-agent-sdk.git
+#   git -C software-agent-sdk checkout v1.41.0
+software-agent-sdk/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Company data (runtime state — never committed)
+/data/
+/share/
+
+# Node
+node_modules/
+web/dist/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.DS_Store
+.idea/
+*.swp
