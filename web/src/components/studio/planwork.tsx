@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import type {
+  Allowance,
   Artifact,
   Company,
   Decision,
@@ -25,7 +26,7 @@ import {
   LedgerTable,
   ObjectionRow,
 } from '@/components/dash'
-import { AUTONOMY_OPTIONS } from '@/components/studio/rail'
+import { AUTONOMY_OPTIONS, allowed } from '@/components/studio/rail'
 import { ArtifactReader } from '@/components/work'
 import { money } from '@/lib/display'
 import { cn } from '@/lib/utils'
@@ -64,6 +65,7 @@ export function PlanWork({
   onShare,
   onUnshare,
   onAutonomy,
+  allowance,
 }: {
   company: Company
   artifacts: Artifact[]
@@ -79,6 +81,7 @@ export function PlanWork({
   onShare: () => void
   onUnshare: () => void
   onAutonomy: (value: string) => void
+  allowance: Allowance | null
 }) {
   const [reading, setReading] = useState<Artifact | null>(null)
   const [body, setBody] = useState<string | null>(null)
@@ -222,6 +225,7 @@ export function PlanWork({
             <SettingsPane
               company={company}
               busy={busy}
+              allowance={allowance}
               onHalt={onHalt}
               onShare={onShare}
               onUnshare={onUnshare}
@@ -324,6 +328,7 @@ function PlanRow({ label, children }: { label: string; children: React.ReactNode
 function SettingsPane({
   company,
   busy,
+  allowance,
   onHalt,
   onShare,
   onUnshare,
@@ -331,12 +336,15 @@ function SettingsPane({
 }: {
   company: Company
   busy: boolean
+  allowance: Allowance | null
   onHalt: () => void
   onShare: () => void
   onUnshare: () => void
   onAutonomy: (value: string) => void
 }) {
   const autonomy = (company.charter as { autonomy?: string }).autonomy ?? 'balanced'
+  const offered = allowed(AUTONOMY_OPTIONS, allowance)
+  const withheld = AUTONOMY_OPTIONS.length - offered.length
   return (
     <div className="space-y-6">
       <div>
@@ -355,7 +363,7 @@ function SettingsPane({
           </span>
         </p>
         <div className="divide-rule-soft divide-y">
-          {AUTONOMY_OPTIONS.map((option) => (
+          {offered.map((option) => (
             <button
               key={option.value}
               type="button"
@@ -381,9 +389,16 @@ function SettingsPane({
             </button>
           ))}
         </div>
+        {withheld > 0 && (
+          <p className="border-rule-soft text-ink-soft border-t px-4 py-2.5 text-[0.75rem] leading-snug">
+            The two far ends of the dial spend a plan faster than it refills —
+            one running shifts unattended, the other asking about everything.
+            They open up on a bigger plan.
+          </p>
+        )}
       </div>
 
-      <Vault cid={company.id} />
+      <Vault cid={company.id} allowance={allowance} />
 
       <div className="panel">
         <p className="border-rule-soft border-b px-4 py-3">
@@ -457,7 +472,13 @@ function SettingsPane({
  * the public page, not in the activity feed. The team can use it; nobody can
  * read it back out.
  */
-function Vault({ cid }: { cid: string }) {
+function Vault({
+  cid,
+  allowance,
+}: {
+  cid: string
+  allowance: Allowance | null
+}) {
   const [items, setItems] = useState<VaultItem[]>([])
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
@@ -498,6 +519,14 @@ function Vault({ cid }: { cid: string }) {
         shown exactly once — right now, while you type it. After that not even
         you can read it back, and it can never appear on the public page.
       </p>
+      {allowance && !allowance.byok && (
+        <p className="text-ink-soft px-4 pt-2.5 text-[0.8125rem] leading-snug">
+          Your own model key belongs here too, named{' '}
+          <code className="font-mono text-[0.75rem]">WERKHAUS_MODEL_KEY</code> —
+          the team runs on it from the plan that includes it. Saved now, it
+          waits, and nothing here is used until then.
+        </p>
+      )}
 
       {items.length > 0 && (
         <ul className="border-rule-soft mx-4 mt-3 border">

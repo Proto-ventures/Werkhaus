@@ -46,6 +46,28 @@ class OpenHandsEngine(BaseEngine):
             )
         self.browsing = browsing
 
+    # ------------------------------------------------------------------ byok
+    VAULT_KEY = "WERKHAUS_MODEL_KEY"
+    VAULT_MODEL = "WERKHAUS_MODEL"
+
+    def byok(self, company: CompanyRuntime) -> tuple[str | None, str | None]:
+        """The founder's own key and model, if their plan includes that.
+
+        Off-plan the vault entry is ignored rather than rejected: someone who
+        upgrades should find the key they already saved simply working, and
+        someone who downgrades should not have their company break — it goes
+        back to running on ours.
+        """
+        allowance = self.allowance()
+        if not allowance.byok:
+            return None, None
+        vault = self._vault_read(company)
+        key = (vault.get(self.VAULT_KEY) or {}).get("value") or None
+        model = None
+        if allowance.model_choice:
+            model = (vault.get(self.VAULT_MODEL) or {}).get("value") or None
+        return key, model
+
     # -------------------------------------------------------------- lifecycle
     async def start(self) -> None:
         # An inherited automation callback would make the workspace phone an

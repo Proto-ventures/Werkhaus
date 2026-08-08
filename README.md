@@ -179,6 +179,36 @@ Free tiers throttle by the minute; `WERKHAUS_LLM_RETRIES` /
 wait out a window instead of failing the shift. Free usually also means the
 provider trains on the traffic — say so anywhere a user brings their own key.
 
+#### Plans and the free trial
+
+`WERKHAUS_PLAN` selects a row of `werkhaus/contract/plan.py`. The default is
+`pro` — self-hosted and development runs are ungated, because a local demo
+should not hit someone else's paywall.
+
+| | free | studio | pro |
+|---|---|---|---|
+| Shifts to start | 3 | 30 | uncounted |
+| Refill | 1 every 7 days | 30 every 30 days | — |
+| Bring your own key | no | no | **yes** |
+| Autonomy | balanced ±1 | all five | all five |
+
+Three rules make the numbers work, and each is a test:
+
+- **The grant is the arc, not a round number.** Free has to reach something the
+  founder can show someone, or they leave believing the product doesn't work.
+  Re-measure the integer when the full roster lands; the arc is what's fixed.
+- **The allowance is a projection.** Nothing decrements — usage is counted from
+  the shifts in the brains, account-wide. A per-company allowance is one you
+  refill by pressing "new company", and a counter is one that drifts.
+- **A shift that produced nothing is not charged.** A shift that filed no
+  document was our failure; billing a trial for it is how a bad day becomes a
+  lost user. Same rule the employees work under, applied to the bill.
+
+Bring-your-own-key is a vault entry named `WERKHAUS_MODEL_KEY` (plus
+`WERKHAUS_MODEL` where model choice is included). Off-plan it is ignored rather
+than rejected: upgrading should make a saved key start working, and downgrading
+should move the company back onto ours instead of breaking it.
+
 #### The autonomy dial
 
 Onboarding asks "how much should the team do on its own?" —

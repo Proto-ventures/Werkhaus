@@ -95,3 +95,11 @@ class ValidationFailed(WerkhausError):
     code = "invalid_request"
     status = 422
     message = "That request didn't look right."
+
+
+class OutOfShifts(Conflict):
+    """The plan gate. Not an error the user caused — a limit they reached."""
+
+    code = "out_of_shifts"
+    message = "You've used the shifts on your plan."
+    hint = "More shifts arrive with your next refill."

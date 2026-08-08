@@ -39,6 +39,7 @@ from werkhaus.contract.models import (
     VaultItem,
     WorkspaceFile,
 )
+from werkhaus.contract.plan import Allowance
 
 
 @runtime_checkable
@@ -109,6 +110,14 @@ class Engine(Protocol):
 
     async def send_note(self, cid: CompanyId, text: str) -> None:
         """The boss walks in. Queued for the next shift's planning phase."""
+        ...
+
+    # --------------------------------------------------------------------- plan
+    async def get_allowance(self) -> Allowance:
+        """What the plan allows, counted from the work actually done.
+
+        Account-wide, never per company: an allowance that resets per company
+        is an allowance you refill by pressing "new company"."""
         ...
 
     # ------------------------------------------------------------------ control

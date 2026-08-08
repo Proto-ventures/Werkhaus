@@ -98,7 +98,11 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
         register_shift(ctx)
         company.shift_ctx = ctx
 
-        llm = (engine.llm_factory or build_llm)(ROLE_ID)
+        if engine.llm_factory is not None:
+            llm = engine.llm_factory(ROLE_ID)
+        else:
+            api_key, model_name = engine.byok(company)
+            llm = build_llm(ROLE_ID, api_key=api_key, model=model_name)
         agent = build_agent(
             llm, company.id, brain, number, browsing=engine.browsing
         )

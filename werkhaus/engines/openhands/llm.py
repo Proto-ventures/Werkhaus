@@ -72,11 +72,21 @@ def check_model_config() -> None:
         )
 
 
-def build_llm(usage_id: str) -> LLM:
-    check_model_config()
+def build_llm(
+    usage_id: str, *, api_key: str | None = None, model: str | None = None
+) -> LLM:
+    """The employee's brain.
+
+    ``api_key`` and ``model`` come from the company vault on plans that allow
+    bringing your own — the caller decides whether they are allowed, because
+    the plan is not this module's business. Absent them, the platform's
+    configuration is used.
+    """
+    if api_key is None:
+        check_model_config()
     return LLM(
-        model=os.environ["WERKHAUS_MODEL"].strip(),
-        api_key=os.getenv("WERKHAUS_MODEL_KEY") or None,
+        model=(model or os.environ["WERKHAUS_MODEL"]).strip(),
+        api_key=api_key or os.getenv("WERKHAUS_MODEL_KEY") or None,
         base_url=os.getenv("WERKHAUS_MODEL_BASE_URL") or None,
         usage_id=usage_id,
         input_cost_per_token=_cost_per_token(

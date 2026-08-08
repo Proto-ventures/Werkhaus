@@ -31,6 +31,7 @@ from werkhaus.contract.errors import (
     CompanyHalted,
     CompanyNotFound,
     NotFound,
+    OutOfShifts,
     ShiftAlreadyRunning,
     ShiftNotFound,
     ValidationFailed,
@@ -59,11 +60,13 @@ from werkhaus.contract.models import (
     ShareOptions,
     Shift,
     ShiftId,
+    ShiftStatus,
     Task,
     TaskStatus,
     VaultItem,
     WorkspaceFile,
 )
+from werkhaus.contract.plan import Allowance, build_allowance, current_plan
 from werkhaus.engines.bus import CompanyBus
 from werkhaus.engines.roster import ROSTER, display_name
 from werkhaus.share.snapshot import build_snapshot
@@ -335,7 +338,7 @@ class BaseEngine(Engine):
         asyncio.create_task(_chain())
 
     def _ensure_can_start(self, company: CompanyRuntime) -> None:
-        """The three reasons a shift may not start, in the order the user
+        """The four reasons a shift may not start, in the order the user
         would want to hear about them."""
         if company.halted:
             raise CompanyHalted()
@@ -343,6 +346,55 @@ class BaseEngine(Engine):
             raise ShiftAlreadyRunning()
         if company.spent >= company.cap:
             raise BudgetExceeded()
+        allowance = self.allowance()
+        if allowance.shifts_left is not None and allowance.shifts_left <= 0:
+            raise OutOfShifts(hint=self._refill_hint(allowance))
+
+    # ------------------------------------------------------------------- plan
+    @staticmethod
+    def _refill_hint(allowance: Allowance) -> str:
+        if allowance.next_refill_at is None:
+            return "Upgrade to keep the team working."
+        days = max(
+            0, (allowance.next_refill_at - datetime.now(UTC)).days
+        )
+        when = "tomorrow" if days <= 1 else f"in {days} days"
+        return (
+            f"Your next shift arrives {when} — or upgrade to keep going now."
+        )
+
+    def _shifts_charged(self) -> int:
+        """What the plan has actually been used for, counted from the brains.
+
+        Charged: a shift that is running now, and a finished shift that left a
+        document behind. A shift that produced nothing was our failure, and a
+        trial billed for our failure is a trial the founder abandons.
+        """
+        total = 0
+        for company in self._companies.values():
+            for shift in company.brain.state.shifts.values():
+                if shift.status is ShiftStatus.RUNNING:
+                    total += 1
+                elif shift.status is ShiftStatus.COMPLETED and shift.artifacts_produced:
+                    # The list is snapshotted onto the shift when it closes, so
+                    # a later shift revising the same document cannot quietly
+                    # take credit — and un-charge the shift that wrote it.
+                    total += 1
+        return total
+
+    def _member_since(self) -> datetime | None:
+        """The refill clock starts at the first company, not at install: the
+        trial should begin when the founder does."""
+        stamps = [c.created_at for c in self._companies.values() if c.created_at]
+        return min(stamps) if stamps else None
+
+    def allowance(self) -> Allowance:
+        return build_allowance(
+            current_plan(), self._member_since(), self._shifts_charged()
+        )
+
+    async def get_allowance(self) -> Allowance:
+        return self.allowance()
 
     # --------------------------------------------------------------- companies
     async def get_company(self, cid: CompanyId) -> Company:

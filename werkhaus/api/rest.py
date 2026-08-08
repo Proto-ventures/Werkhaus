@@ -34,6 +34,7 @@ from werkhaus.contract.models import (
     VaultItem,
     WorkspaceFile,
 )
+from werkhaus.contract.plan import Allowance
 
 router = APIRouter(prefix="/api/v1", tags=["werkhaus"])
 public_router = APIRouter(prefix="/public", tags=["public"])
@@ -71,6 +72,12 @@ class BudgetBody(_Body):
 
 class VaultValueBody(_Body):
     value: str = Field(min_length=1, max_length=8000)
+
+
+# ----------------------------------------------------------------------------- plan
+@router.get("/allowance", response_model=Allowance)
+async def get_allowance(engine: EngineDep) -> Allowance:
+    return await engine.get_allowance()
 
 
 # ------------------------------------------------------------------------ companies

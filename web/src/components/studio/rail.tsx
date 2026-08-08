@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type {
+  Allowance,
   AttentionRequest,
   Company,
   ShiftEvent,
@@ -46,6 +47,16 @@ interface Question {
   placeholder: string
   optional: boolean
   options?: QuestionOption[]
+}
+
+/** Only the settings this plan can actually pay for are offered. Showing a
+ *  choice that will be refused later is worse than not showing it. */
+export function allowed(
+  options: QuestionOption[],
+  allowance: Allowance | null,
+): QuestionOption[] {
+  if (!allowance) return options
+  return options.filter((o) => allowance.autonomy.includes(o.value as never))
 }
 
 /** The autonomy dial. Both extremes burn budget fast — one on unattended work,
@@ -126,11 +137,13 @@ export function Rail({
   onNote,
   onCharter,
   onStart,
+  allowance,
 }: {
   company: Company
   events: ShiftEvent[]
   attention: AttentionRequest[]
   busy: boolean
+  allowance: Allowance | null
   onAnswer: (requestId: string, answer: string) => void
   onNote: (text: string) => void
   onCharter: (patch: Record<string, unknown>) => Promise<void>
@@ -247,7 +260,7 @@ export function Rail({
             {QUESTIONS[onb.step].ask}
             {QUESTIONS[onb.step].options && (
               <span className="mt-2.5 flex flex-col items-start gap-1.5">
-                {QUESTIONS[onb.step].options!.map((option) => (
+                {allowed(QUESTIONS[onb.step].options!, allowance).map((option) => (
                   <button
                     key={option.value}
                     type="button"
@@ -275,7 +288,14 @@ export function Rail({
           </AdaTurn>
         )}
 
-        {planReady && <PlanCard company={company} busy={busy} onApprove={approve} />}
+        {planReady && (
+          <PlanCard
+            company={company}
+            busy={busy}
+            allowance={allowance}
+            onApprove={approve}
+          />
+        )}
 
         {groups.map((group) =>
           group.t === 'you' ? (
@@ -356,12 +376,15 @@ function YouTurn({ children }: { children: React.ReactNode }) {
 function PlanCard({
   company,
   busy,
+  allowance,
   onApprove,
 }: {
   company: Company
   busy: boolean
+  allowance: Allowance | null
   onApprove: () => void
 }) {
+  const out = allowance?.shifts_left === 0
   return (
     <div className="panel">
       <p className="border-rule-soft border-b px-4 py-3">
@@ -380,10 +403,17 @@ function PlanCard({
           about {perShift(company)} of the budget · roughly 15 minutes · nothing
           goes public without you
         </p>
+        {allowance?.shifts_left != null && (
+          <p className="mb-2.5 text-[0.8125rem] leading-snug">
+            {out
+              ? 'You have used the shifts on your plan. The work so far is safe, and stays here.'
+              : `${allowance.shifts_left} of your ${allowance.grant} shifts left.`}
+          </p>
+        )}
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy}
+          disabled={busy || out}
           onClick={onApprove}
         >
           approve the plan and start

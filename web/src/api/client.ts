@@ -60,6 +60,7 @@ export type Budget = components['schemas']['Budget']
 export type VaultItem = components['schemas']['VaultItem']
 export type WorkspaceFile = components['schemas']['WorkspaceFile']
 export type ShareLink = components['schemas']['ShareLink']
+export type Allowance = components['schemas']['Allowance']
 
 export const api = {
   listCompanies: () => request<Company[]>('/companies'),
@@ -109,6 +110,8 @@ export const api = {
   listAttention: (cid: string) =>
     request<AttentionRequest[]>(`/companies/${cid}/attention`),
   listTasks: (cid: string) => request<Task[]>(`/companies/${cid}/tasks`),
+  /** Account-wide, never per company. */
+  getAllowance: () => request<Allowance>('/allowance'),
   listLedger: (cid: string) => request<LedgerEntry[]>(`/companies/${cid}/ledger`),
   /** Cold load: a shift is fully reconstructible without a live socket. */
   replay: (cid: string, sinceSeq = 0) =>

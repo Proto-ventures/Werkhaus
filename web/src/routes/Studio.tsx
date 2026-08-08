@@ -16,6 +16,7 @@ import {
   type Artifact,
   type AttentionRequest,
   type Decision,
+  type Allowance,
   type LedgerEntry,
   type Objection,
   type Shift,
@@ -82,17 +83,19 @@ export function Studio() {
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
+  const [allowance, setAllowance] = useState<Allowance | null>(null)
   const [busy, setBusy] = useState(false)
 
   const loadAll = useCallback(async () => {
     if (!cid) return
-    const [at, ar, ob, de, sh, le] = await Promise.all([
+    const [at, ar, ob, de, sh, le, al] = await Promise.all([
       api.listAttention(cid),
       api.listArtifacts(cid),
       api.listObjections(cid),
       api.listDecisions(cid),
       api.listShifts(cid),
       api.listLedger(cid),
+      api.getAllowance(),
     ])
     setAttention(at)
     setArtifacts(ar)
@@ -100,6 +103,7 @@ export function Studio() {
     setDecisions(de)
     setShifts(sh)
     setLedger(le)
+    setAllowance(al)
   }, [cid])
 
   useEffect(() => {
@@ -199,8 +203,21 @@ export function Studio() {
             ))}
           </nav>
 
+          {allowance?.shifts_left != null && (
+            <span
+              className="text-ink-faint ml-auto hidden font-mono text-[0.6875rem] lg:block"
+              title={`${allowance.label} plan`}
+            >
+              {allowance.shifts_left} shift{allowance.shifts_left === 1 ? '' : 's'}{' '}
+              left
+            </span>
+          )}
+
           <span
-            className="text-ink-faint ml-auto hidden items-center gap-1.5 font-mono text-[0.6875rem] md:flex"
+            className={cn(
+              'text-ink-faint hidden items-center gap-1.5 font-mono text-[0.6875rem] md:flex',
+              allowance?.shifts_left == null && 'ml-auto',
+            )}
             title={connected ? 'live' : 'reconnecting'}
           >
             <Mark shape={connected ? 'circle' : 'ring'} tone={connected ? 'blue' : 'faint'} />
@@ -228,11 +245,18 @@ export function Studio() {
           ) : (
             <button
               className="btn btn-primary shrink-0 py-1 text-[0.8125rem]"
-              disabled={busy || company.status === 'blocked' || company.shift_count === 0}
+              disabled={
+                busy ||
+                company.status === 'blocked' ||
+                company.shift_count === 0 ||
+                allowance?.shifts_left === 0
+              }
               title={
                 company.shift_count === 0
                   ? 'Approve the plan in the chat first'
-                  : undefined
+                  : allowance?.shifts_left === 0
+                    ? 'You have used the shifts on your plan'
+                    : undefined
               }
               onClick={() => act(() => api.startShift(cid), 'Shift started.')}
             >
@@ -293,6 +317,7 @@ export function Studio() {
               await refresh()
             }}
             onStart={() => act(() => api.startShift(cid), 'Shift 1 started.')}
+            allowance={allowance}
           />
         </aside>
 
@@ -321,6 +346,7 @@ export function Studio() {
               onUnshare={() =>
                 act(() => api.unpublish(cid), 'The public page is down.')
               }
+              allowance={allowance}
               onAutonomy={(value) =>
                 act(
                   () => api.updateCharter(cid, { autonomy: value }),
