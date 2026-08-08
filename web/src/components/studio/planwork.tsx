@@ -398,8 +398,6 @@ function SettingsPane({
         )}
       </div>
 
-      <Vault cid={company.id} allowance={allowance} />
-
       <div className="panel">
         <p className="border-rule-soft border-b px-4 py-3">
           <span className="display text-base">Public page</span>
@@ -472,7 +470,7 @@ function SettingsPane({
  * the public page, not in the activity feed. The team can use it; nobody can
  * read it back out.
  */
-function Vault({
+export function Vault({
   cid,
   allowance,
 }: {

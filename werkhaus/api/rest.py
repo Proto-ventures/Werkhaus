@@ -14,7 +14,14 @@ from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from werkhaus.api.deps import EngineDep
+from werkhaus.contract.catalog import CATALOG
 from werkhaus.contract.events import ShiftEvent
+from werkhaus.contract.integrations import (
+    IntegrationSpec,
+    IntegrationState,
+    ProvisionedResource,
+    SpendPolicy,
+)
 from werkhaus.contract.models import (
     Artifact,
     ArtifactKind,
@@ -93,6 +100,71 @@ async def health(engine: EngineDep) -> dict[str, object]:
 @router.get("/allowance", response_model=Allowance)
 async def get_allowance(engine: EngineDep) -> Allowance:
     return await engine.get_allowance()
+
+
+# -------------------------------------------------------------------- connections
+class ConnectBody(_Body):
+    values: dict[str, str] = Field(min_length=1)
+
+
+@router.get("/integrations/catalog", response_model=list[IntegrationSpec])
+async def integration_catalog() -> list[IntegrationSpec]:
+    """Company-independent, so the marketing site can render it too."""
+    return list(CATALOG)
+
+
+@router.get(
+    "/companies/{cid}/integrations", response_model=list[IntegrationState]
+)
+async def list_integrations(cid: str, engine: EngineDep) -> list[IntegrationState]:
+    return await engine.list_integrations(cid)
+
+
+@router.post(
+    "/companies/{cid}/integrations/{provider}", response_model=IntegrationState
+)
+async def connect_integration(
+    cid: str, provider: str, body: ConnectBody, engine: EngineDep
+) -> IntegrationState:
+    return await engine.connect_integration(cid, provider, body.values)
+
+
+@router.post(
+    "/companies/{cid}/integrations/{provider}/verify",
+    response_model=IntegrationState,
+)
+async def verify_integration(
+    cid: str, provider: str, engine: EngineDep
+) -> IntegrationState:
+    return await engine.verify_integration(cid, provider)
+
+
+@router.delete(
+    "/companies/{cid}/integrations/{provider}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def disconnect_integration(
+    cid: str, provider: str, engine: EngineDep
+) -> Response:
+    await engine.disconnect_integration(cid, provider)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/companies/{cid}/resources", response_model=list[ProvisionedResource])
+async def list_resources(cid: str, engine: EngineDep) -> list[ProvisionedResource]:
+    return await engine.list_resources(cid)
+
+
+@router.get("/companies/{cid}/spend-policy", response_model=SpendPolicy)
+async def get_spend_policy(cid: str, engine: EngineDep) -> SpendPolicy:
+    return await engine.get_spend_policy(cid)
+
+
+@router.put("/companies/{cid}/spend-policy", response_model=SpendPolicy)
+async def set_spend_policy(
+    cid: str, policy: SpendPolicy, engine: EngineDep
+) -> SpendPolicy:
+    return await engine.set_spend_policy(cid, policy)
 
 
 # ------------------------------------------------------------------------ companies

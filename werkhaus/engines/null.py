@@ -20,6 +20,11 @@ from werkhaus.contract.errors import (
     ShiftNotFound,
 )
 from werkhaus.contract.events import ShiftEvent, ShiftEventKind
+from werkhaus.contract.integrations import (
+    IntegrationState,
+    ProvisionedResource,
+    SpendPolicy,
+)
 from werkhaus.contract.models import (
     Artifact,
     ArtifactId,
@@ -148,6 +153,34 @@ class NullEngine(Engine):
         raise CompanyNotFound()
 
     async def resume(self, cid: CompanyId) -> Company:
+        raise CompanyNotFound()
+
+    # -------------------------------------------------------------- connections
+    async def list_integrations(self, cid: CompanyId) -> list[IntegrationState]:
+        raise CompanyNotFound()
+
+    async def connect_integration(
+        self, cid: CompanyId, provider: str, values: dict[str, str]
+    ) -> IntegrationState:
+        raise CompanyNotFound()
+
+    async def verify_integration(
+        self, cid: CompanyId, provider: str
+    ) -> IntegrationState:
+        raise CompanyNotFound()
+
+    async def disconnect_integration(self, cid: CompanyId, provider: str) -> None:
+        raise CompanyNotFound()
+
+    async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
+        raise CompanyNotFound()
+
+    async def get_spend_policy(self, cid: CompanyId) -> SpendPolicy:
+        raise CompanyNotFound()
+
+    async def set_spend_policy(
+        self, cid: CompanyId, policy: SpendPolicy
+    ) -> SpendPolicy:
         raise CompanyNotFound()
 
     # -------------------------------------------------------------------- vault

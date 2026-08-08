@@ -35,6 +35,7 @@ from werkhaus.contract.errors import (
     NotFound,
     TaskAlreadyClaimed,
 )
+from werkhaus.contract.integrations import ProvisionedResource
 from werkhaus.contract.models import (
     Artifact,
     ArtifactKind,
@@ -84,6 +85,10 @@ class CompanyBrain:
         self.metrics: dict[str, Any] = {}
         self.spent = Decimal("0")
         self.notes: list[str] = []
+        # What happened to each connection, in order. Never a stored value:
+        # a secret written to an append-only log can never be deleted.
+        self.integrations: dict[str, dict[str, Any]] = {}
+        self.resources: dict[str, ProvisionedResource] = {}
 
     @property
     def open_tasks(self) -> list[Task]:
@@ -568,6 +573,99 @@ class BrainStore:
 
     def _on_set_progress(self, data: dict, actor: str | None, at: str) -> None:
         self.state.progress = Progress.model_validate(data["progress"])
+
+    # -------------------------------------------------------- integrations
+    _MAX_LOGGED = 96
+    """Nothing about a connection is long. A value that got in here by mistake
+    almost certainly would be — so refuse it rather than trust the caller."""
+
+    def record_integration(
+        self,
+        *,
+        provider: str,
+        event: str,
+        fields: list[str],
+        message: str = "",
+        scope_note: str | None = None,
+        actor: str | None = None,
+    ) -> None:
+        """What happened to a connection. Names and outcomes only.
+
+        The vault holds the values; this holds the history. Keeping them apart
+        is what makes "disconnect" mean something: a secret in an append-only
+        log can never be deleted.
+        """
+        for text in (*fields, provider, event):
+            if len(text) > self._MAX_LOGGED:
+                raise ValueError(
+                    "refusing to log an over-long value against an integration"
+                )
+        self._append(
+            "record_integration",
+            {
+                "provider": provider,
+                "event": event,
+                "fields": list(fields),
+                "message": message,
+                "scope_note": scope_note,
+            },
+            actor,
+        )
+
+    def _on_record_integration(self, data: dict, actor: str | None, at: str) -> None:
+        entry = self.state.integrations.setdefault(data["provider"], {})
+        entry["event"] = data["event"]
+        entry["fields"] = list(data.get("fields") or [])
+        entry["message"] = data.get("message") or ""
+        entry["scope_note"] = data.get("scope_note")
+        entry["at"] = at
+        if data["event"] == "connected":
+            entry["connected_at"] = at
+        if data["event"] in ("connected", "verified"):
+            entry["verified_at"] = at
+        if data["event"] == "disconnected":
+            entry.pop("connected_at", None)
+            entry.pop("verified_at", None)
+
+    def record_resource(  # noqa: PLR0913
+        self,
+        *,
+        provider: str,
+        kind: str,
+        ref: str,
+        label: str,
+        url: str | None = None,
+        shift_id: str | None = None,
+        actor: str | None = None,
+    ) -> ProvisionedResource:
+        """Something the team made that the founder now owns."""
+        rid = _oid("rs")
+        self._append(
+            "record_resource",
+            {
+                "id": rid,
+                "provider": provider,
+                "kind": kind,
+                "ref": ref,
+                "label": label,
+                "url": url,
+                "shift_id": shift_id,
+            },
+            actor,
+        )
+        return self.state.resources[rid]
+
+    def _on_record_resource(self, data: dict, actor: str | None, at: str) -> None:
+        self.state.resources[data["id"]] = ProvisionedResource(
+            id=data["id"],
+            provider=data["provider"],
+            kind=data["kind"],
+            ref=data["ref"],
+            label=data["label"],
+            url=data.get("url"),
+            created_in_shift=data.get("shift_id"),
+            at=datetime.fromisoformat(at),
+        )
 
     def record_metric(
         self, key: str, value: Any, *, role_id: str | None = None

@@ -17,6 +17,11 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from werkhaus.contract.events import ShiftEvent
+from werkhaus.contract.integrations import (
+    IntegrationState,
+    ProvisionedResource,
+    SpendPolicy,
+)
 from werkhaus.contract.models import (
     Artifact,
     ArtifactId,
@@ -119,6 +124,36 @@ class Engine(Protocol):
         Account-wide, never per company: an allowance that resets per company
         is an allowance you refill by pressing "new company"."""
         ...
+
+    # -------------------------------------------------------------- connections
+    async def list_integrations(self, cid: CompanyId) -> list[IntegrationState]:
+        """Every service in the catalog with this company's connection state.
+        Always all six: a card the founder can't use yet still explains what it
+        would unlock."""
+        ...
+
+    async def connect_integration(
+        self, cid: CompanyId, provider: str, values: dict[str, str]
+    ) -> IntegrationState:
+        """Check the credential with the provider, then store it. A value that
+        fails verification is never written anywhere."""
+        ...
+
+    async def verify_integration(
+        self, cid: CompanyId, provider: str
+    ) -> IntegrationState: ...
+
+    async def disconnect_integration(self, cid: CompanyId, provider: str) -> None: ...
+
+    async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
+        """What the team has built that the founder now owns."""
+        ...
+
+    async def get_spend_policy(self, cid: CompanyId) -> SpendPolicy: ...
+
+    async def set_spend_policy(
+        self, cid: CompanyId, policy: SpendPolicy
+    ) -> SpendPolicy: ...
 
     # ------------------------------------------------------------------ control
     async def set_budget_cap(self, cid: CompanyId, cap: Decimal) -> Budget: ...

@@ -62,6 +62,12 @@ class PlanLimits(BaseModel):
     byok: bool
     model_choice: bool
     autonomy: list[Autonomy]
+    integrations: list[str] = []
+    """Which services this plan may connect. Free gets the three with real
+    free tiers, so a trial can reach a working product without anyone
+    entering card details — money is the paid product's job."""
+
+    external_spend: bool = False
 
 
 PLANS: dict[Plan, PlanLimits] = {
@@ -82,6 +88,8 @@ PLANS: dict[Plan, PlanLimits] = {
         byok=False,
         model_choice=False,
         autonomy=FREE_AUTONOMY,
+        integrations=["supabase", "netlify", "resend"],
+        external_spend=False,
     ),
     "studio": PlanLimits(
         plan="studio",
@@ -92,6 +100,8 @@ PLANS: dict[Plan, PlanLimits] = {
         byok=False,
         model_choice=False,
         autonomy=ALL_AUTONOMY,
+        integrations=["supabase", "netlify", "resend", "stripe"],
+        external_spend=True,
     ),
     "pro": PlanLimits(
         plan="pro",
@@ -102,6 +112,8 @@ PLANS: dict[Plan, PlanLimits] = {
         byok=True,
         model_choice=True,
         autonomy=ALL_AUTONOMY,
+        integrations=["supabase", "netlify", "resend", "stripe", "x402", "moonpay"],
+        external_spend=True,
     ),
 }
 
@@ -159,6 +171,8 @@ class Allowance(Base):
     byok: bool
     model_choice: bool
     autonomy: list[Autonomy]
+    integrations: list[str]
+    external_spend: bool
 
 
 def build_allowance(
@@ -178,4 +192,6 @@ def build_allowance(
         byok=limits.byok,
         model_choice=limits.model_choice,
         autonomy=limits.autonomy,
+        integrations=limits.integrations,
+        external_spend=limits.external_spend,
     )

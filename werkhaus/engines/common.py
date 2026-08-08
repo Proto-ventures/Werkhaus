@@ -24,6 +24,10 @@ from typing import Any
 
 from werkhaus.brain.layout import CompanyPaths
 from werkhaus.brain.store import BrainStore
+from werkhaus.contract.catalog import CATALOG
+from werkhaus.contract.catalog import field as catalog_field
+from werkhaus.contract.catalog import refused_names as catalog_refused
+from werkhaus.contract.catalog import spec as catalog_spec
 from werkhaus.contract.credentials import CredentialClass, classify
 from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import (
@@ -31,6 +35,10 @@ from werkhaus.contract.errors import (
     BudgetExceeded,
     CompanyHalted,
     CompanyNotFound,
+    CredentialRejected,
+    ForbiddenCredential,
+    IntegrationNotFound,
+    IntegrationUnavailable,
     NotFound,
     OutOfShifts,
     ShiftAlreadyRunning,
@@ -40,6 +48,16 @@ from werkhaus.contract.errors import (
 )
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.events import ShiftEventKind as K
+from werkhaus.contract.integrations import (
+    BACKEND_STEPS,
+    Availability,
+    Connection,
+    ConnectionStatus,
+    IntegrationSpec,
+    IntegrationState,
+    ProvisionedResource,
+    SpendPolicy,
+)
 from werkhaus.contract.models import (
     Artifact,
     ArtifactId,
@@ -70,6 +88,7 @@ from werkhaus.contract.models import (
 from werkhaus.contract.plan import Allowance, build_allowance, current_plan
 from werkhaus.engines.bus import CompanyBus
 from werkhaus.engines.roster import ROSTER, display_name
+from werkhaus.engines.verify import HttpVerifier, Verifier
 from werkhaus.share.scanner import scan_text
 from werkhaus.share.snapshot import build_snapshot
 
@@ -203,10 +222,15 @@ class CompanyRuntime:
 class BaseEngine(Engine):
     """Everything an engine does that isn't running a shift."""
 
-    def __init__(self, root: str | Path = "./data") -> None:
+    def __init__(
+        self, root: str | Path = "./data", verifier: Verifier | None = None
+    ) -> None:
         self.root = Path(root)
         self._companies: dict[CompanyId, CompanyRuntime] = {}
         self._site_scan_cache: dict[tuple[str, int], bool] = {}
+        # Injected in tests. In production a credential is only ever stored
+        # after the provider itself has confirmed it works.
+        self.verifier: Verifier = verifier or HttpVerifier()
 
     # ---------------------------------------------------------------- hooks
     def _make_runtime(self, brain: BrainStore, bus: CompanyBus) -> CompanyRuntime:
@@ -580,6 +604,225 @@ class BaseEngine(Engine):
             added_at=datetime.fromisoformat(entry["added_at"]),
         )
 
+    # ------------------------------------------------------------ connections
+    def _connection(
+        self, company: CompanyRuntime, entry: IntegrationSpec
+    ) -> Connection:
+        """Derived: what we hold, what happened, and what the plan allows.
+
+        Nothing here is stored. A "connected" flag can disagree with the vault;
+        this cannot.
+        """
+        allowance = self.allowance()
+        vault = self._vault_read(company)
+        history = company.brain.state.integrations.get(entry.id, {})
+        present = [f.name for f in entry.fields if f.name in vault]
+        wanted = [f.name for f in entry.fields if f.required and not f.team_fills_it]
+        have_all = bool(wanted) and all(name in vault for name in wanted)
+
+        blocks = [
+            step
+            for step in BACKEND_STEPS
+            if entry.id in step.needs and not have_all
+        ]
+        unavailable: str | None = None
+        if entry.availability is Availability.MANUAL_SETUP:
+            unavailable = entry.manual_note
+        elif entry.id not in allowance.integrations:
+            unavailable = (
+                f"{entry.display_name} isn't part of the {allowance.label} plan."
+            )
+
+        if unavailable and not have_all:
+            status = ConnectionStatus.UNAVAILABLE
+        elif not have_all:
+            status = ConnectionStatus.NOT_CONNECTED
+        elif history.get("event") == "failed":
+            status = ConnectionStatus.NEEDS_ATTENTION
+        else:
+            status = ConnectionStatus.CONNECTED
+
+        return Connection(
+            provider=entry.id,
+            status=status,
+            fields_present=present,
+            hints={
+                name: self._vault_item(name, vault[name]).hint
+                for name in present
+                if not entry.availability == Availability.MANUAL_SETUP
+            },
+            connected_at=_maybe_time(history.get("connected_at")),
+            verified_at=_maybe_time(history.get("verified_at")),
+            message=history.get("message") or None,
+            scope_note=history.get("scope_note"),
+            blocks=[step.title for step in blocks],
+            unavailable_reason=unavailable,
+        )
+
+    async def list_integrations(self, cid: CompanyId) -> list[IntegrationState]:
+        company = self._get(cid)
+        return [
+            IntegrationState(spec=entry, connection=self._connection(company, entry))
+            for entry in CATALOG
+        ]
+
+    async def connect_integration(
+        self, cid: CompanyId, provider: str, values: dict[str, str]
+    ) -> IntegrationState:
+        """Check, then store. Never the other way round.
+
+        A key that fails during a shift costs a whole shift, and on the free
+        plan there are three. So the provider confirms the credential while the
+        founder is still on the page, and a value that does not pass is never
+        written anywhere.
+        """
+        company = self._get(cid)
+        try:
+            entry = catalog_spec(provider)
+        except KeyError:
+            raise IntegrationNotFound() from None
+
+        if entry.availability is Availability.MANUAL_SETUP:
+            raise IntegrationUnavailable(
+                f"{entry.display_name} can't be connected from here yet.",
+                hint=entry.manual_note,
+            )
+        allowance = self.allowance()
+        if entry.id not in allowance.integrations:
+            raise IntegrationUnavailable(
+                f"{entry.display_name} isn't part of the {allowance.label} plan.",
+                hint="Upgrading adds it. Everything you've built stays as it is.",
+            )
+
+        clean: dict[str, str] = {}
+        for name, raw in values.items():
+            self._refuse_forbidden(name)
+            spec_field = catalog_field(provider, name)
+            if spec_field is None:
+                raise ValidationFailed(
+                    f"{entry.display_name} doesn't take a value called {name}."
+                )
+            value = raw.strip()
+            if spec_field.pattern and not re.match(spec_field.pattern, value):
+                raise CredentialRejected(
+                    spec_field.help
+                    or f"That doesn't look like {spec_field.label.lower()}.",
+                )
+            clean[name] = value
+
+        missing = [
+            f.name
+            for f in entry.fields
+            if f.required and not f.team_fills_it and f.name not in clean
+        ]
+        if missing:
+            raise ValidationFailed(
+                f"{entry.display_name} still needs "
+                f"{catalog_field(provider, missing[0]).label.lower()}."  # type: ignore[union-attr]
+            )
+
+        result = await self.verifier.check(provider, clean)
+        if not result.ok:
+            company.brain.record_integration(
+                provider=provider,
+                event="failed",
+                fields=sorted(clean),
+                message=result.message,
+            )
+            raise CredentialRejected(result.message, hint=result.hint)
+
+        vault = self._vault_read(company)
+        stamp = datetime.now(UTC).isoformat()
+        for name, value in {**clean, **result.facts}.items():
+            vault[name] = {"value": value, "added_at": stamp}
+        self._vault_write(company, vault)
+        company.brain.record_integration(
+            provider=provider,
+            event="connected",
+            fields=sorted({**clean, **result.facts}),
+            message=result.message,
+            scope_note=result.scope_note,
+        )
+        said = f"Ada: {entry.display_name} is connected."
+        if result.scope_note:
+            said = f"{said} {result.scope_note}"
+        company.bus.emit(K.ROLE_SAID, said)
+        return IntegrationState(
+            spec=entry, connection=self._connection(company, entry)
+        )
+
+    async def verify_integration(
+        self, cid: CompanyId, provider: str
+    ) -> IntegrationState:
+        """Re-check a connection we already hold, on demand."""
+        company = self._get(cid)
+        try:
+            entry = catalog_spec(provider)
+        except KeyError:
+            raise IntegrationNotFound() from None
+
+        vault = self._vault_read(company)
+        held = {
+            f.name: vault[f.name]["value"] for f in entry.fields if f.name in vault
+        }
+        if not held:
+            raise IntegrationNotFound(
+                f"{entry.display_name} isn't connected yet.",
+            )
+        result = await self.verifier.check(provider, held)
+        company.brain.record_integration(
+            provider=provider,
+            event="verified" if result.ok else "failed",
+            fields=sorted(held),
+            message=result.message,
+            scope_note=result.scope_note,
+        )
+        return IntegrationState(
+            spec=entry, connection=self._connection(company, entry)
+        )
+
+    async def disconnect_integration(self, cid: CompanyId, provider: str) -> None:
+        company = self._get(cid)
+        try:
+            entry = catalog_spec(provider)
+        except KeyError:
+            raise IntegrationNotFound() from None
+        vault = self._vault_read(company)
+        removed = [f.name for f in entry.fields if vault.pop(f.name, None) is not None]
+        self._vault_write(company, vault)
+        company.brain.record_integration(
+            provider=provider,
+            event="disconnected",
+            fields=sorted(removed),
+            message=f"{entry.display_name} was disconnected.",
+        )
+
+    async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
+        company = self._get(cid)
+        return sorted(company.brain.state.resources.values(), key=lambda r: r.at)
+
+    async def get_spend_policy(self, cid: CompanyId) -> SpendPolicy:
+        raw = self._get(cid).brain.state.metrics.get("spend_policy")
+        return SpendPolicy.model_validate(raw) if raw else SpendPolicy()
+
+    async def set_spend_policy(
+        self, cid: CompanyId, policy: SpendPolicy
+    ) -> SpendPolicy:
+        company = self._get(cid)
+        company.brain.record_metric("spend_policy", policy.model_dump(mode="json"))
+        return policy
+
+    def _refuse_forbidden(self, name: str) -> None:
+        """The one credential we decline by name.
+
+        A database master key bypasses row-level security completely, and
+        giving one to an agent is the specific mistake behind the best-known
+        leak of this kind. Refusing it mechanically — here and in the raw
+        vault — means nobody arrives at that configuration by accident.
+        """
+        if name.strip().upper() in catalog_refused():
+            raise ForbiddenCredential()
+
     def _secret_values(self, company: CompanyRuntime) -> list[str]:
         """The stored values that must never appear in anything public.
 
@@ -600,6 +843,9 @@ class BaseEngine(Engine):
         return [self._vault_item(n, e) for n, e in sorted(vault.items())]
 
     async def set_vault(self, cid: CompanyId, name: str, value: str) -> VaultItem:
+        # The guided flow and the raw vault obey the same refusal, or the
+        # escape hatch quietly becomes the way round the safety rule.
+        self._refuse_forbidden(name)
         if not self._VAULT_NAME.match(name):
             raise ValidationFailed(
                 "That name won't work.",
@@ -909,3 +1155,7 @@ real web page — anyone with the address could read it.</p>
 server function, where it belongs, and the page will appear again once it has.</p>
 </main></body></html>
 """
+
+
+def _maybe_time(raw: str | None) -> datetime | None:
+    return datetime.fromisoformat(raw) if raw else None

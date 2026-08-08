@@ -61,6 +61,12 @@ export type VaultItem = components['schemas']['VaultItem']
 export type WorkspaceFile = components['schemas']['WorkspaceFile']
 export type ShareLink = components['schemas']['ShareLink']
 export type Allowance = components['schemas']['Allowance']
+export type IntegrationSpec = components['schemas']['IntegrationSpec']
+export type IntegrationState = components['schemas']['IntegrationState']
+export type Connection = components['schemas']['Connection']
+export type WalkStep = components['schemas']['WalkStep']
+export type CredentialField = components['schemas']['CredentialField']
+export type ProvisionedResource = components['schemas']['ProvisionedResource']
 
 export const api = {
   listCompanies: () => request<Company[]>('/companies'),
@@ -112,6 +118,21 @@ export const api = {
   listTasks: (cid: string) => request<Task[]>(`/companies/${cid}/tasks`),
   /** Account-wide, never per company. */
   getAllowance: () => request<Allowance>('/allowance'),
+  listIntegrations: (cid: string) =>
+    request<IntegrationState[]>(`/companies/${cid}/integrations`),
+  connectIntegration: (cid: string, provider: string, values: Record<string, string>) =>
+    request<IntegrationState>(`/companies/${cid}/integrations/${provider}`, {
+      method: 'POST',
+      body: JSON.stringify({ values }),
+    }),
+  verifyIntegration: (cid: string, provider: string) =>
+    request<IntegrationState>(`/companies/${cid}/integrations/${provider}/verify`, {
+      method: 'POST',
+    }),
+  disconnectIntegration: (cid: string, provider: string) =>
+    request<void>(`/companies/${cid}/integrations/${provider}`, { method: 'DELETE' }),
+  listResources: (cid: string) =>
+    request<ProvisionedResource[]>(`/companies/${cid}/resources`),
   listLedger: (cid: string) => request<LedgerEntry[]>(`/companies/${cid}/ledger`),
   /** Cold load: a shift is fully reconstructible without a live socket. */
   replay: (cid: string, sinceSeq = 0) =>

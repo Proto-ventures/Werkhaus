@@ -44,6 +44,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration Catalog
+         * @description Company-independent, so the marketing site can render it too.
+         */
+        get: operations["integration_catalog_api_v1_integrations_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Integrations */
+        get: operations["list_integrations_api_v1_companies__cid__integrations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/integrations/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect Integration */
+        post: operations["connect_integration_api_v1_companies__cid__integrations__provider__post"];
+        /** Disconnect Integration */
+        delete: operations["disconnect_integration_api_v1_companies__cid__integrations__provider__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/integrations/{provider}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Integration */
+        post: operations["verify_integration_api_v1_companies__cid__integrations__provider__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Resources */
+        get: operations["list_resources_api_v1_companies__cid__resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/spend-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Spend Policy */
+        get: operations["get_spend_policy_api_v1_companies__cid__spend_policy_get"];
+        /** Set Spend Policy */
+        put: operations["set_spend_policy_api_v1_companies__cid__spend_policy_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/companies": {
         parameters: {
             query?: never;
@@ -553,6 +660,10 @@ export interface components {
             model_choice: boolean;
             /** Autonomy */
             autonomy: ("full_auto" | "semi_auto" | "balanced" | "limited" | "full_control")[];
+            /** Integrations */
+            integrations: string[];
+            /** External Spend */
+            external_spend: boolean;
         };
         /** AnswerBody */
         AnswerBody: {
@@ -647,6 +758,11 @@ export interface components {
             /** Answer */
             answer?: string | null;
         };
+        /**
+         * Availability
+         * @enum {string}
+         */
+        Availability: "available" | "beta" | "manual_setup";
         /** Budget */
         Budget: {
             /** Spent */
@@ -667,6 +783,11 @@ export interface components {
             /** Cap */
             cap: number | string;
         };
+        /**
+         * Category
+         * @enum {string}
+         */
+        Category: "database" | "payments" | "hosting" | "email";
         /**
          * Charter
          * @description What the company is for.
@@ -742,12 +863,92 @@ export interface components {
          * @enum {string}
          */
         CompanyStatus: "draft" | "idle" | "working" | "blocked" | "halted" | "archived";
+        /** ConnectBody */
+        ConnectBody: {
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * Connection
+         * @description Derived at read time from the vault, the log, and the plan.
+         */
+        Connection: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "supabase" | "stripe" | "netlify" | "resend" | "x402" | "moonpay";
+            status: components["schemas"]["ConnectionStatus"];
+            /** Fields Present */
+            fields_present?: string[];
+            /** Hints */
+            hints?: {
+                [key: string]: string;
+            };
+            /** Connected At */
+            connected_at?: string | null;
+            /** Verified At */
+            verified_at?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Scope Note */
+            scope_note?: string | null;
+            /** Blocks */
+            blocks?: string[];
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
+        };
+        /**
+         * ConnectionStatus
+         * @enum {string}
+         */
+        ConnectionStatus: "not_connected" | "connected" | "needs_attention" | "unavailable";
         /** CreateCompanyBody */
         CreateCompanyBody: {
             /** Idea */
             idea: string;
             /** Name */
             name?: string | null;
+        };
+        /**
+         * CredentialClass
+         * @enum {string}
+         */
+        CredentialClass: "public" | "secret" | "reference";
+        /**
+         * CredentialField
+         * @description One value the founder pastes in, or the team discovers later.
+         */
+        CredentialField: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            kind: components["schemas"]["CredentialClass"];
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /** Pattern */
+            pattern?: string | null;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /**
+             * Secret Input
+             * @default true
+             */
+            secret_input: boolean;
+            /**
+             * Team Fills It
+             * @default false
+             */
+            team_fills_it: boolean;
         };
         /** Decision */
         Decision: {
@@ -782,6 +983,61 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * IntegrationSpec
+         * @description A service, described in the founder's terms rather than the vendor's.
+         */
+        IntegrationSpec: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "supabase" | "stripe" | "netlify" | "resend" | "x402" | "moonpay";
+            /** Display Name */
+            display_name: string;
+            category: components["schemas"]["Category"];
+            /** @default available */
+            availability: components["schemas"]["Availability"];
+            /** What It Does */
+            what_it_does: string;
+            /** Unlocks */
+            unlocks?: string[];
+            /** Employees */
+            employees?: string[];
+            /**
+             * Cost Note
+             * @default
+             */
+            cost_note: string;
+            /**
+             * Minutes
+             * @default 5
+             */
+            minutes: number;
+            /** Fields */
+            fields?: components["schemas"]["CredentialField"][];
+            /** Refuses */
+            refuses?: string[];
+            /** Steps */
+            steps?: components["schemas"]["WalkStep"][];
+            /**
+             * Verify Label
+             * @default Check it works
+             */
+            verify_label: string;
+            /** Docs Url */
+            docs_url?: string | null;
+            /** Manual Note */
+            manual_note?: string | null;
+        };
+        /**
+         * IntegrationState
+         * @description Spec and connection together: one payload the page can render whole.
+         */
+        IntegrationState: {
+            spec: components["schemas"]["IntegrationSpec"];
+            connection: components["schemas"]["Connection"];
         };
         /** LedgerEntry */
         LedgerEntry: {
@@ -867,6 +1123,40 @@ export interface components {
             whats_missing?: string[];
             /** Judged At */
             judged_at?: string | null;
+        };
+        /**
+         * ProvisionedResource
+         * @description Something the team made that the founder now owns.
+         *
+         *     Recorded so the studio can show a real address instead of a placeholder,
+         *     and so a second shift knows the first one already built this.
+         */
+        ProvisionedResource: {
+            /** Id */
+            id: string;
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "supabase" | "stripe" | "netlify" | "resend" | "x402" | "moonpay";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "project" | "site" | "deployment" | "function" | "bucket" | "payment_link";
+            /** Ref */
+            ref: string;
+            /** Label */
+            label: string;
+            /** Url */
+            url?: string | null;
+            /** Created In Shift */
+            created_in_shift?: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
         };
         /** PublicSnapshot */
         PublicSnapshot: {
@@ -1041,6 +1331,90 @@ export interface components {
          * @enum {string}
          */
         ShiftStatus: "queued" | "running" | "completed" | "failed" | "aborted" | "budget_exceeded";
+        /**
+         * SpendPolicy
+         * @description What the team may spend on *services*, as distinct from thinking.
+         *
+         *     Separate from the budget because it is a different kind of money: the LLM
+         *     bill is ours to meter, a Supabase project on a paid tier is a recurring
+         *     charge on the founder's own card. Everything here is off by default —
+         *     Supabase, Netlify and Resend all have free tiers a whole product fits in.
+         */
+        "SpendPolicy-Input": {
+            /**
+             * External Cap
+             * @default 0.00
+             */
+            external_cap: number | string;
+            /**
+             * Allow Paid Signup
+             * @default false
+             */
+            allow_paid_signup: boolean;
+            /**
+             * X402 Per Call Cap
+             * @default 0.10
+             */
+            x402_per_call_cap: number | string;
+            /**
+             * X402 Shift Cap
+             * @default 1.00
+             */
+            x402_shift_cap: number | string;
+            /**
+             * Allow X402
+             * @default false
+             */
+            allow_x402: boolean;
+            /**
+             * Stripe Mode
+             * @default test
+             * @enum {string}
+             */
+            stripe_mode: "test" | "live";
+        };
+        /**
+         * SpendPolicy
+         * @description What the team may spend on *services*, as distinct from thinking.
+         *
+         *     Separate from the budget because it is a different kind of money: the LLM
+         *     bill is ours to meter, a Supabase project on a paid tier is a recurring
+         *     charge on the founder's own card. Everything here is off by default —
+         *     Supabase, Netlify and Resend all have free tiers a whole product fits in.
+         */
+        "SpendPolicy-Output": {
+            /**
+             * External Cap
+             * @default 0.00
+             */
+            external_cap: string;
+            /**
+             * Allow Paid Signup
+             * @default false
+             */
+            allow_paid_signup: boolean;
+            /**
+             * X402 Per Call Cap
+             * @default 0.10
+             */
+            x402_per_call_cap: string;
+            /**
+             * X402 Shift Cap
+             * @default 1.00
+             */
+            x402_shift_cap: string;
+            /**
+             * Allow X402
+             * @default false
+             */
+            allow_x402: boolean;
+            /**
+             * Stripe Mode
+             * @default test
+             * @enum {string}
+             */
+            stripe_mode: "test" | "live";
+        };
         /** StartShiftBody */
         StartShiftBody: {
             /** Focus */
@@ -1126,6 +1500,32 @@ export interface components {
             value: string;
         };
         /**
+         * WalkStep
+         * @description One step of the guided walkthrough.
+         *
+         *     Prose only, never a command. Each step must stand on its own words: the
+         *     picture is an illustration, not the instruction, so a walkthrough with no
+         *     pictures yet is still followable. Enforced by a test.
+         */
+        WalkStep: {
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Link */
+            link?: string | null;
+            /** Link Label */
+            link_label?: string | null;
+            /** Media */
+            media?: string | null;
+            /** Media Alt */
+            media_alt?: string | null;
+            /** Field */
+            field?: string | null;
+            /** Warning */
+            warning?: string | null;
+        };
+        /**
          * WorkspaceFile
          * @description One file the team wrote while building. Path is workspace-relative;
          *     nothing outside ``workspace/`` is ever enumerated.
@@ -1188,6 +1588,252 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Allowance"];
+                };
+            };
+        };
+    };
+    integration_catalog_api_v1_integrations_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationSpec"][];
+                };
+            };
+        };
+    };
+    list_integrations_api_v1_companies__cid__integrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationState"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_integration_api_v1_companies__cid__integrations__provider__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_integration_api_v1_companies__cid__integrations__provider__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_integration_api_v1_companies__cid__integrations__provider__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resources_api_v1_companies__cid__resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvisionedResource"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_spend_policy_api_v1_companies__cid__spend_policy_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendPolicy-Output"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_spend_policy_api_v1_companies__cid__spend_policy_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpendPolicy-Input"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendPolicy-Output"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

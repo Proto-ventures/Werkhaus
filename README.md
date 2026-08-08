@@ -209,6 +209,51 @@ Bring-your-own-key is a vault entry named `WERKHAUS_MODEL_KEY` (plus
 than rejected: upgrading should make a saved key start working, and downgrading
 should move the company back onto ours instead of breaking it.
 
+#### Connections
+
+A company needs accounts of its own — a database, somewhere to be hosted, a way
+to send email, a way to take money. **Every provider requires a human to create
+the account and mint the first credential**; there is no automated path from
+nothing to a working backend, and there never will be, because signing up is an
+agreement a person makes. So the guided walkthrough in
+`werkhaus/contract/catalog.py` is not a wrapper around the feature, it *is* the
+feature, and its prose is the part a competitor can't copy from a docs page.
+
+| | what it does | free | studio | pro |
+|---|---|---|---|---|
+| Supabase | database, accounts, storage | ✓ | ✓ | ✓ |
+| Netlify | puts the site on the internet | ✓ | ✓ | ✓ |
+| Resend | sends customers email | ✓ | ✓ | ✓ |
+| Stripe | takes card payments (test mode) | | ✓ | ✓ |
+| x402 | stablecoin payments (in testing) | | | ✓ |
+| MoonPay | card-to-crypto — manual setup | | | ✓ |
+
+Free gets the three with genuine free tiers, so a trial can reach a working
+product without anyone entering card details. Deliberately absent: **Vercel**
+(its MCP server only accepts an allowlist of approved clients, so an autonomous
+agent can't use it), **Clerk** and **Twilio** (documentation search only — they
+cannot touch a live instance). Listing them would be a lie.
+
+Four rules, each with a test:
+
+- **Checked before stored.** `werkhaus/engines/verify.py` calls the provider's
+  cheapest read at the moment the key is pasted. A key that fails costs a shift,
+  and the free plan has three — so a value that doesn't pass is never written
+  anywhere.
+- **Test mode first is a regex, not a branch.** Stripe's field only matches
+  `rk_test_`, so a live key cannot be stored by a code path that forgot to check.
+- **The database master key is refused by name**, from the guided flow *and* the
+  raw vault. Handing a service-role key to an agent is the specific mistake
+  behind the best-known leak of this kind, so it is unreachable rather than
+  discouraged.
+- **Connection state is derived** from the vault, the log and the plan. There is
+  no stored flag to disagree with reality, and values never enter the append-only
+  log — a secret written there could never be deleted.
+
+Walkthrough pictures are a slot (`web/public/walkthroughs/`): every step must be
+followable from its words alone, so screen recordings can be added later without
+touching code.
+
 #### The autonomy dial
 
 Onboarding asks "how much should the team do on its own?" —

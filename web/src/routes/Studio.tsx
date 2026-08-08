@@ -26,17 +26,21 @@ import { useClock, useStored } from '@/components/dash'
 import { Code } from '@/components/studio/code'
 import { PlanWork, type PlanSection } from '@/components/studio/planwork'
 import { Rail } from '@/components/studio/rail'
+import { Services } from '@/components/studio/services'
 import { Website } from '@/components/studio/website'
 import { useCompany } from '@/hooks/useCompany'
 import { COMPANY_STATUS } from '@/lib/display'
 import { cn } from '@/lib/utils'
 
-type Tab = 'plan' | 'website' | 'code'
+type Tab = 'plan' | 'website' | 'code' | 'services'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'plan', label: 'plan & files' },
   { key: 'website', label: 'website' },
   { key: 'code', label: 'code' },
+  // Its own tab, not a settings sub-page: this is where a company that writes
+  // documents becomes one that can take an order.
+  { key: 'services', label: 'connections' },
 ]
 
 /** Old bookmarked sub-routes land in the right place in the new layout. */
@@ -49,6 +53,8 @@ const SECTION_MAP: Record<string, { tab: Tab; section?: PlanSection }> = {
   settings: { tab: 'plan', section: 'settings' },
   website: { tab: 'website' },
   code: { tab: 'code' },
+  services: { tab: 'services' },
+  integrations: { tab: 'services' },
 }
 
 export function Studio() {
@@ -366,6 +372,11 @@ export function Studio() {
           )}
           {tab === 'website' && <Website company={company} artifacts={artifacts} />}
           {tab === 'code' && <Code cid={cid} refreshKey={shifts.length} />}
+          {tab === 'services' && (
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+              <Services cid={cid} />
+            </div>
+          )}
         </main>
       </div>
     </div>

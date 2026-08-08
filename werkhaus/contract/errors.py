@@ -119,3 +119,34 @@ class EngineNotConfigured(WerkhausError):
         "The server was started without an engine. Set WERKHAUS_ENGINE=stub to "
         "try it with scripted shifts, or openhands to run real employees."
     )
+
+
+class IntegrationNotFound(NotFound):
+    code = "integration_not_found"
+    message = "We don't know that service."
+
+
+class IntegrationUnavailable(Conflict):
+    code = "integration_unavailable"
+    message = "That service isn't available on this plan."
+
+
+class CredentialRejected(WerkhausError):
+    """The value was wrong, or the provider turned it down. Never stored."""
+
+    code = "credential_rejected"
+    status = 422
+    message = "That didn't work."
+
+
+class ForbiddenCredential(WerkhausError):
+    """One specific key we decline to hold, by name."""
+
+    code = "forbidden_credential"
+    status = 422
+    message = "That's a master key for your database, and we don't accept those."
+    hint = (
+        "It can read and change everything, ignoring the rules that protect "
+        "your customers' data. Use the access token from your account settings "
+        "instead — it's the only one the team needs."
+    )
