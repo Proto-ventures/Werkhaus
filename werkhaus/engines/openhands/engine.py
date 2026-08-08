@@ -1,6 +1,6 @@
 """The real engine.
 
-Same contract, same brain, same bus as the stub — the only thing different is
+The engine. Contract, brain and bus are the shared ones; what differs is
 that shift work comes from an actual model holding actual tools. In M3 that
 means one employee: Maya, the market researcher, browsing the real web.
 

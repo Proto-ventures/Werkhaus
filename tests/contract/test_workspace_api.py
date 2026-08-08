@@ -17,6 +17,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.contract.conftest import make_engine
 from werkhaus.api.app import create_app
 
 SECRET = "sq_live_9f8e7d6c5b4a39281706fedcba543210"
@@ -24,18 +25,17 @@ SECRET = "sq_live_9f8e7d6c5b4a39281706fedcba543210"
 
 @pytest.fixture
 def client(tmp_path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("WERKHAUS_ENGINE", "stub")
+    """The HTTP layer over the real engine, thinking with a scripted model."""
     monkeypatch.setenv("WERKHAUS_DATA", str(tmp_path))
-    monkeypatch.setenv("WERKHAUS_STUB_SCENARIO", "happy")
-    app = create_app()
+    app = create_app(engine=make_engine(tmp_path))
     with TestClient(app) as c:
-        c.put("/api/v1/_dev/speed", json={"speed": 400.0})
+        c.tmp_path = tmp_path  # type: ignore[attr-defined]
         yield c
 
 
 def _company(client: TestClient) -> str:
     return client.post(
-        "/api/v1/companies", json={"idea": "A ceramics subscription box"}
+        "/api/v1/companies", json={"idea": "A booking tool for mobile dog groomers"}
     ).json()["id"]
 
 
@@ -101,9 +101,26 @@ def test_vault_rejects_a_hostile_name(client: TestClient) -> None:
 
 
 # ------------------------------------------------------------------- workspace
+def _put_site(client: TestClient, cid: str) -> None:
+    """A built site on disk.
+
+    Written here rather than produced by a shift: these tests are about the
+    serving path — containment, mime types, traversal — and Kit, who builds
+    sites for real, arrives with the rest of the roster.
+    """
+    site = client.tmp_path / cid / "workspace" / "site"  # type: ignore[attr-defined]
+    site.mkdir(parents=True, exist_ok=True)
+    (site / "index.html").write_text(
+        "<!doctype html>\n<html><body><h1>Join the waitlist</h1></body></html>\n",
+        encoding="utf-8",
+    )
+    (site / "styles.css").write_text("body{font-family:system-ui}\n", encoding="utf-8")
+
+
 def test_files_are_real_and_workspace_only(client: TestClient) -> None:
     cid = _company(client)
     _run_shift(client, cid)
+    _put_site(client, cid)
 
     files = client.get(f"/api/v1/companies/{cid}/files").json()
     paths = {f["path"] for f in files}
@@ -127,18 +144,12 @@ def test_files_are_real_and_workspace_only(client: TestClient) -> None:
 # ------------------------------------------------------------------------ site
 def test_site_is_served_for_real(client: TestClient) -> None:
     cid = _company(client)
-    _run_shift(client, cid)
+    _put_site(client, cid)
 
     page = client.get(f"/api/v1/companies/{cid}/site/")
     assert page.status_code == 200
     assert "waitlist" in page.text.lower()
     assert client.get(f"/api/v1/companies/{cid}/site/styles.css").status_code == 200
-
-    # The site artifact points at this URL, so the dashboard needs no
-    # special-casing to find it.
-    artifacts = client.get(f"/api/v1/companies/{cid}/artifacts").json()
-    site = next(a for a in artifacts if a["kind"] == "site")
-    assert site["preview_url"] == f"/api/v1/companies/{cid}/site/"
 
     # Encoded so the client can't normalise it away: the handler receives
     # "../_state/log.jsonl" and the containment check refuses it.

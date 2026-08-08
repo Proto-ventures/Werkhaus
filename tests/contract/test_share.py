@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.contract.conftest import make_engine, prepare_workspace, wait_idle
 from werkhaus.contract.errors import PublishBlocked
 from werkhaus.contract.models import Progress, ShareOptions
-from werkhaus.engines.stub.engine import StubEngine
 from werkhaus.share.scanner import scan_text, scan_tree
 from werkhaus.share.snapshot import build_snapshot
 
@@ -90,11 +90,12 @@ def test_publish_is_blocked_when_a_key_leaks(tmp_path: Path) -> None:
 
 
 async def test_a_snapshot_only_contains_what_was_opted_in(tmp_path: Path) -> None:
-    engine = StubEngine(root=tmp_path, seed=42, speed=FAST)
+    engine = make_engine(tmp_path)
     await engine.start()
-    company = await engine.create_company("x")
+    company = await engine.create_company("A booking tool for dog groomers")
+    prepare_workspace(tmp_path, company.id)
     await engine.start_shift(company.id)
-    await engine._companies[company.id].task_handle  # type: ignore[misc]
+    await wait_idle(engine, company.id)
 
     brain = engine._companies[company.id].brain
     # Private notes and engine state exist and must never be enumerated.
@@ -127,7 +128,7 @@ async def test_a_snapshot_only_contains_what_was_opted_in(tmp_path: Path) -> Non
 async def test_unpublished_links_stop_serving(tmp_path: Path) -> None:
     from werkhaus.contract.errors import NotFound
 
-    engine = StubEngine(root=tmp_path, seed=42, speed=FAST)
+    engine = make_engine(tmp_path)
     await engine.start()
     company = await engine.create_company("x")
     link = await engine.publish(company.id, ShareOptions())

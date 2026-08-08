@@ -2,7 +2,7 @@
 
 A dashboard that renders only ``kind`` + ``text`` + ``at`` is a complete, shippable
 product. Everything else on ShiftEvent is progressive enhancement. That constraint
-is what keeps the stub honest: the stub cannot cheat by emitting something richer
+is what keeps the narration honest: an employee cannot emit something richer
 than the real engine can produce.
 """
 

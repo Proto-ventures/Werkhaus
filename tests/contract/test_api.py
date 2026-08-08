@@ -1,8 +1,13 @@
-"""End-to-end through the HTTP layer, with the stub engine.
+"""End-to-end through the HTTP layer.
 
 Covers the path the browser actually takes: create a company, run a shift, read
 back everything the dashboard reads, and confirm the socket carries the same
 events the cold-load endpoint does.
+
+The engine is the real one; only the thinking is scripted. Assertions are about
+the *shape* of what comes back — quantized money, opaque ids, ordered events,
+prose instead of tracebacks — never about how much work a particular shift
+happened to produce.
 """
 
 from __future__ import annotations
@@ -12,21 +17,22 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.contract.conftest import make_engine, prepare_workspace
 from werkhaus.api.app import create_app
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("WERKHAUS_ENGINE", "stub")
+    """The HTTP layer over the real engine, thinking with a scripted model."""
     monkeypatch.setenv("WERKHAUS_DATA", str(tmp_path))
-    monkeypatch.setenv("WERKHAUS_STUB_SCENARIO", "happy")
-    app = create_app()
+    app = create_app(engine=make_engine(tmp_path))
     with TestClient(app) as c:
-        c.put("/api/v1/_dev/speed", json={"speed": 400.0})
+        c.tmp_path = tmp_path  # type: ignore[attr-defined]
         yield c
 
 
 def _run_shift(client: TestClient, cid: str) -> dict:
+    prepare_workspace(client.tmp_path, cid)  # type: ignore[attr-defined]
     assert client.post(f"/api/v1/companies/{cid}/shifts", json={}).status_code == 202
     for _ in range(600):
         company = client.get(f"/api/v1/companies/{cid}").json()
@@ -40,7 +46,7 @@ def _run_shift(client: TestClient, cid: str) -> dict:
 
 def test_full_shift_through_the_api(client: TestClient) -> None:
     created = client.post(
-        "/api/v1/companies", json={"idea": "A ceramics subscription box"}
+        "/api/v1/companies", json={"idea": "A booking tool for mobile dog groomers"}
     )
     assert created.status_code == 201
     cid = created.json()["id"]
@@ -48,10 +54,10 @@ def test_full_shift_through_the_api(client: TestClient) -> None:
     # The charter flow patches the fields the guided capture collects.
     patched = client.patch(
         f"/api/v1/companies/{cid}/charter",
-        json={"audience": "People in small UK flats", "constraints": ["UK only"]},
+        json={"audience": "Groomers who work alone", "constraints": ["UK only"]},
     )
     assert patched.status_code == 200
-    assert patched.json()["charter"]["audience"] == "People in small UK flats"
+    assert patched.json()["charter"]["audience"] == "Groomers who work alone"
 
     company = _run_shift(client, cid)
     assert company["status"] == "idle"
@@ -60,35 +66,26 @@ def test_full_shift_through_the_api(client: TestClient) -> None:
     assert len(company["roster"]) == 8
 
     artifacts = client.get(f"/api/v1/companies/{cid}/artifacts").json()
-    assert len(artifacts) >= 6
+    assert artifacts
     for artifact in artifacts:
+        # The anti-slop rule, enforced in the store rather than asked for in a
+        # prompt: a document cannot claim a source it does not have.
         if artifact["confidence"] == "sourced":
             assert artifact["sources"], artifact["title"]
+        # Paths are company-relative. An absolute one is how a home directory
+        # gets published.
+        assert not artifact["path"].startswith("/")
 
-    # The reader opens a document by opaque id and gets real content back. Seed
-    # artifacts are deliberately realistic — long, with tables — because a UI
-    # built against tidy placeholder prose breaks on the first real one.
-    bodies = {
-        a["title"]: client.get(f"/api/v1/artifacts/{a['id']}/content").text
-        for a in artifacts
-        if a["kind"] != "site"
-    }
-    assert all(len(body) > 500 for body in bodies.values()), (
-        "seed artifacts must be real content, not lorem ipsum"
-    )
-    assert sum("|" in body for body in bodies.values()) >= 2, (
-        "at least two seed documents must contain tables for the reader to render"
-    )
+    # The reader opens a document by opaque id and gets its real content.
+    body = client.get(f"/api/v1/artifacts/{artifacts[0]['id']}/content")
+    assert body.status_code == 200
+    assert body.text.strip()
 
     objections = client.get(f"/api/v1/companies/{cid}/objections").json()
-    assert len(objections) >= 3
     assert {o["severity"] for o in objections} <= {"fatal", "serious", "noted"}
     assert all(o["settled_by"] for o in objections), (
         "an objection without a way to settle it is just a complaint"
     )
-
-    decisions = client.get(f"/api/v1/companies/{cid}/decisions").json()
-    assert decisions and any(d["contested_by"] for d in decisions)
 
     shifts = client.get(f"/api/v1/companies/{cid}/shifts").json()
     assert shifts[0]["status"] == "completed" and shifts[0]["summary"]
@@ -96,7 +93,6 @@ def test_full_shift_through_the_api(client: TestClient) -> None:
     # Money is quantized everywhere it can be seen. Dividing a role's budget
     # across its activities otherwise yields $6.83999999999999999998.
     ledger = client.get(f"/api/v1/companies/{cid}/ledger").json()
-    assert ledger
     amounts = [e["amount"] for e in ledger]
     amounts += [company["budget"]["spent"], company["budget"]["cap"]]
     amounts += [s["cost"] for s in client.get(f"/api/v1/companies/{cid}/shifts").json()]
@@ -112,11 +108,15 @@ def test_cold_load_matches_the_socket(client: TestClient) -> None:
     with client.websocket_connect(f"/ws/companies/{cid}") as socket:
         _run_shift(client, cid)
         live: list[dict] = []
-        # Drain what the socket delivered.
-        for _ in range(40):
+        # Read until the shift closes rather than a fixed count: receive_text()
+        # blocks, so counting past the last event hangs the suite.
+        for _ in range(400):
             try:
-                live.append(json.loads(socket.receive_text()))
+                event = json.loads(socket.receive_text())
             except Exception:
+                break
+            live.append(event)
+            if event["kind"] in ("shift.completed", "shift.failed"):
                 break
 
     replayed = client.get(
@@ -145,41 +145,6 @@ def test_halt_from_the_api_stops_everything(client: TestClient) -> None:
     body = refused.json()["error"]
     assert body["code"] == "company_halted"
     assert "Traceback" not in refused.text and "/home/" not in refused.text
-
-
-def test_budget_scenario_surfaces_as_prose(client: TestClient) -> None:
-    cid = client.post(
-        "/api/v1/companies", json={"idea": "x [scenario:budget_blowup]"}
-    ).json()["id"]
-    company = _run_shift(client, cid)
-
-    assert company["status"] == "halted"
-    shifts = client.get(f"/api/v1/companies/{cid}/shifts").json()
-    assert shifts[0]["status"] == "budget_exceeded"
-
-    # Raising the cap is the documented way out, and it works from the API.
-    budget = client.put(f"/api/v1/companies/{cid}/budget", json={"cap": "80.00"})
-    assert budget.status_code == 200
-    assert client.get(f"/api/v1/companies/{cid}").json()["status"] == "idle"
-
-
-def test_attention_scenario_blocks_and_unblocks(client: TestClient) -> None:
-    cid = client.post(
-        "/api/v1/companies", json={"idea": "x [scenario:needs_attention]"}
-    ).json()["id"]
-    company = _run_shift(client, cid)
-    assert company["status"] == "blocked"
-
-    pending = client.get(f"/api/v1/companies/{cid}/attention").json()
-    assert len(pending) == 1 and pending[0]["answered_at"] is None
-    assert pending[0]["options"]
-
-    answered = client.post(
-        f"/api/v1/companies/{cid}/attention/{pending[0]['id']}",
-        json={"answer": pending[0]["options"][0]},
-    )
-    assert answered.status_code == 204
-    assert client.get(f"/api/v1/companies/{cid}/attention").json()[0]["answered_at"]
 
 
 def test_every_error_uses_the_same_envelope(client: TestClient) -> None:

@@ -2,7 +2,7 @@
 
 The dashboard never sees an SDK type, concept, or vocabulary word. If an
 ``openhands`` import ever appears under ``werkhaus/contract`` or ``werkhaus/api``,
-the stub and the real engine have stopped being swappable and nobody will notice
+the dashboard has started depending on the SDK and nobody will notice
 until the swap fails.
 
 All SDK imports belong under ``werkhaus/engines/openhands/``.

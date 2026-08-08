@@ -13,10 +13,10 @@ import json
 
 import pytest
 
+from tests.contract.conftest import make_engine
 from werkhaus.contract.credentials import CredentialClass, classify
 from werkhaus.contract.errors import PublishBlocked
 from werkhaus.contract.models import ShareOptions
-from werkhaus.engines.stub.engine import StubEngine
 from werkhaus.share.scanner import jwt_role, scan_text
 
 
@@ -100,7 +100,7 @@ def test_classification_fails_closed() -> None:
 
 # --------------------------------------------------------------- through publish
 async def _company(tmp_path):
-    engine = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
+    engine = make_engine(tmp_path)
     await engine.start()
     company = await engine.create_company("A refill service for cleaning products")
     return engine, company

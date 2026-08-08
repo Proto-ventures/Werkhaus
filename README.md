@@ -13,6 +13,12 @@ These three are load-bearing. Breaking any of them quietly undoes the design.
    under `contract/`, `api/`, `brain/` or `share/` may import `openhands.*`.
    All SDK imports live under `werkhaus/engines/openhands/`.
    Enforced by `tests/contract/test_no_sdk_imports.py`.
+   There is **one engine** and it calls real models. Werkhaus used to ship a
+   stub that replayed scripted shifts; it was useful for building the interface
+   without spending money, and it was also a machine for producing convincing
+   fiction — a founder watched a team read pages nobody opened, about a business
+   they had not described. The tests drive the real engine with the SDK's
+   scripted model instead, so nothing was lost except the fiction.
 2. **`software-agent-sdk/` is a read-only reference checkout, never a dependency.**
    We pin `openhands-sdk==1.41.0` from PyPI. The SDK ships ~6 commits/day; a path
    dependency would turn every upgrade into a merge. The clone is for grepping and
@@ -24,9 +30,9 @@ These three are load-bearing. Breaking any of them quietly undoes the design.
 ## Layout
 
 ```
-werkhaus/contract/   the interface both engines implement. Zero SDK imports.
+werkhaus/contract/   the interface the engine implements. Zero SDK imports.
 werkhaus/api/        FastAPI REST + WS. Depends on contract only.
-werkhaus/engines/    null, stub, openhands (M3+)
+werkhaus/engines/    openhands (the engine), null (nothing configured yet)
 werkhaus/brain/      BrainStore — durable cross-conversation company state
 werkhaus/share/      snapshot builder + secret scanner
 web/                 Vite + React + Tailwind + shadcn/ui
@@ -73,51 +79,15 @@ Two processes. The frontend only ever talks to its own origin — Vite proxies
 
 ```bash
 uv sync
-uv run uvicorn werkhaus.api.app:app --reload --port 8000
-cd web && npm install && npm run dev        # http://localhost:5173
+cd web && npm install
 ```
 
-Engine selection is one environment variable:
+Shifts cost money and take real time, so there is no offline mode to develop
+against: configure a model (below) and run it. Tests are the fast loop —
+they drive the same engine with a scripted model, and the whole suite is
+about ten seconds.
 
-```bash
-WERKHAUS_ENGINE=null       # empty everywhere, heartbeats only
-WERKHAUS_ENGINE=stub       # scripted scenarios, no LLM calls (use this)
-WERKHAUS_ENGINE=openhands  # real employees, real money (M3: Maya only)
-```
-
-### Demoing the stub
-
-```bash
-WERKHAUS_ENGINE=stub WERKHAUS_DATA=./data \
-  uv run uvicorn werkhaus.api.app:app --reload --port 8000
-```
-
-Pick how a shift goes by putting a tag in the company description — the whole
-failure matrix is one click away, on purpose:
-
-| Scenario | What happens |
-|---|---|
-| `happy` | Six documents, two decisions, three objections, page ships |
-| `budget_blowup` | Cap is hit mid-shift; company halts with work saved |
-| `role_failure` | Kit's build fails; the shift finishes without him |
-| `needs_attention` | Ines stops and asks you a question; company blocks |
-| `firehose` | ~2,700 events in a minute — the load test |
-
-```
-A subscription box for ceramics [scenario:budget_blowup]
-```
-
-**Shifts run at real speed by default** (~15 minutes). That is deliberate: if the
-team only ever sees a 20-second shift, nobody builds resumability, coalescing or
-"leave and come back", and those are the three things that break at real latency.
-To speed one up:
-
-```bash
-curl -X PUT localhost:8000/api/v1/_dev/speed \
-  -H 'Content-Type: application/json' -d '{"speed":300}'
-```
-
-### Running the real engine (M3: one employee)
+### Running it
 
 Maya, the market researcher, works for real: she browses the live web with a
 headless browser, writes `market-research.md`, and files it through the company
@@ -125,8 +95,7 @@ brain. Her "sourced" labels are checked against the pages she actually loaded �
 a cited URL she never visited is downgraded to "inferred", out loud.
 
 ```bash
-export WERKHAUS_ENGINE=openhands
-export WERKHAUS_DATA=./data-real
+export WERKHAUS_DATA=./data
 # Any litellm model string works. House preference: open-weight models first.
 export WERKHAUS_MODEL="openrouter/qwen/qwen3-235b-a22b-2507"
 export OPENROUTER_API_KEY=sk-or-...
@@ -138,10 +107,11 @@ export WERKHAUS_INPUT_COST_PER_MTOK=0.20
 export WERKHAUS_OUTPUT_COST_PER_MTOK=0.60
 
 uv run uvicorn werkhaus.api.app:app --port 8000   # run from a dir with no .env
+cd web && npm run dev                             # http://localhost:5173
 ```
 
 Then create a company in the studio and start a shift, ideally with a focus
-("Who sells ceramics subscription boxes in Germany and what do they charge?").
+("Which booking apps do mobile dog groomers already pay for, and what do they charge?").
 Knobs: `WERKHAUS_MODEL_KEY` / `WERKHAUS_MODEL_BASE_URL` override the provider
 defaults; `WERKHAUS_BUDGET_CAP` (default 20.00) and `WERKHAUS_SHIFT_CAP`
 (default 2.00) set new-company budgets; `WERKHAUS_NO_BROWSER=1` removes the
@@ -149,7 +119,12 @@ browser (research is then honest about being inferred). Maya's per-run cap is
 $1.50 on top of a 5-second cost watchdog; one real shift runs at a time —
 the browser is shared.
 
-What to verify after a real shift: `data-real/co_*/workspace/market-research.md`
+Without `WERKHAUS_MODEL` the API still serves and says so on the front door,
+rather than crashing at boot or inventing work.
+
+Start from nothing with `uv run werkhaus reset ./data`.
+
+What to verify after a shift: `data/co_*/workspace/market-research.md`
 has real URLs; the artifact is `sourced` only for visited pages; the ledger has
 a nonzero cost; `GET /api/v1/companies/{id}/events` reads like an employee, not
 a model; halt mid-shift returns in under two seconds and nothing is lost.

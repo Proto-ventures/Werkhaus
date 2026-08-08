@@ -8,37 +8,26 @@ dial's expensive ends are not on offer to someone who cannot afford them.
 from __future__ import annotations
 
 import asyncio
-import time
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
+from tests.contract.conftest import (
+    empty_llm,
+    make_engine,
+    prepare_workspace,
+    run_one_shift,
+    wait_idle,
+)
 from werkhaus.contract.errors import OutOfShifts
-from werkhaus.contract.models import CompanyStatus
 from werkhaus.contract.plan import (
     PLANS,
     build_allowance,
     next_refill_at,
     shifts_left,
 )
-from werkhaus.engines.stub.engine import StubEngine
 
 FREE = PLANS["free"]
-
-
-def _engine(root: Path) -> StubEngine:
-    return StubEngine(root=root, seed=42, scenario="happy", speed=400.0)
-
-
-async def _run_one(engine: StubEngine, cid: str) -> None:
-    await engine.start_shift(cid)
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
-        if (await engine.get_company(cid)).status is not CompanyStatus.WORKING:
-            return
-        await asyncio.sleep(0.05)
-    raise AssertionError("shift never finished")
 
 
 # ------------------------------------------------------------------ arithmetic
@@ -81,14 +70,14 @@ def test_the_free_dial_omits_both_expensive_ends() -> None:
 # ----------------------------------------------------------------- the gate
 async def test_free_runs_out_after_its_grant(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("WERKHAUS_PLAN", "free")
-    engine = _engine(tmp_path)
+    engine = make_engine(tmp_path)
     await engine.start()
     try:
-        company = await engine.create_company("A ceramics subscription box")
+        company = await engine.create_company("A booking tool for mobile dog groomers")
         assert (await engine.get_allowance()).shifts_left == 3
 
         for expected in (2, 1, 0):
-            await _run_one(engine, company.id)
+            await run_one_shift(engine, company.id, tmp_path)
             assert (await engine.get_allowance()).shifts_left == expected
 
         with pytest.raises(OutOfShifts) as caught:
@@ -104,12 +93,12 @@ async def test_the_allowance_is_not_refilled_by_making_a_new_company(
     """The obvious exploit. Allowance is account-wide precisely because a
     per-company one is refilled by pressing a button."""
     monkeypatch.setenv("WERKHAUS_PLAN", "free")
-    engine = _engine(tmp_path)
+    engine = make_engine(tmp_path)
     await engine.start()
     try:
-        first = await engine.create_company("A ceramics subscription box")
+        first = await engine.create_company("A booking tool for mobile dog groomers")
         for _ in range(3):
-            await _run_one(engine, first.id)
+            await run_one_shift(engine, first.id, tmp_path)
         assert (await engine.get_allowance()).shifts_left == 0
 
         second = await engine.create_company("Something else entirely")
@@ -127,23 +116,24 @@ async def test_a_shift_that_produced_nothing_is_not_charged(
     document leaves the allowance where it was — the same rule the employees
     work under, applied to the bill."""
     monkeypatch.setenv("WERKHAUS_PLAN", "free")
-    engine = StubEngine(root=tmp_path, seed=42, scenario="role_failure", speed=400.0)
+    engine = make_engine(tmp_path, llm=empty_llm)
     await engine.start()
     try:
-        company = await engine.create_company("x [scenario:role_failure]")
+        company = await engine.create_company("A booking tool for dog groomers")
+        prepare_workspace(tmp_path, company.id)
         await engine.start_shift(company.id)
-        await engine.halt(company.id)  # stopped before anything was filed
+        await wait_idle(engine, company.id)
 
-        left = (await engine.get_allowance()).shifts_left
-        artifacts = await engine.list_artifacts(company.id)
-        assert left == 3 - (1 if artifacts else 0)
+        # The shift ran and finished; it just left nothing behind.
+        assert await engine.list_artifacts(company.id) == []
+        assert (await engine.get_allowance()).shifts_left == 3
     finally:
         await engine.aclose()
 
 
 async def test_the_default_is_ungated(tmp_path) -> None:
     """A self-hosted or development run must not hit someone else's paywall."""
-    engine = _engine(tmp_path)
+    engine = make_engine(tmp_path)
     await engine.start()
     try:
         await engine.create_company("x")

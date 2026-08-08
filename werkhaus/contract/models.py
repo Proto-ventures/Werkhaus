@@ -120,7 +120,7 @@ class ShiftStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
-    # The three below exist from day 1, including in the stub. If the stub only
+    # The three below exist from day 1. If the interface only
     # knows how to succeed, the UI only learns to render success.
     FAILED = "failed"
     ABORTED = "aborted"

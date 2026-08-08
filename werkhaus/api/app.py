@@ -20,7 +20,8 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from werkhaus.api import rest, ws
-from werkhaus.api.deps import build_engine, engine_kind
+from werkhaus.api.deps import build_engine
+from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import WerkhausError
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def _error_body(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    engine = build_engine()
+    engine = getattr(app.state, "prepared_engine", None) or build_engine()
     app.state.engine = engine
     await engine.start()
     logger.info("engine ready: %s", type(engine).__name__)
@@ -56,7 +57,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await engine.aclose()
 
 
-def create_app() -> FastAPI:
+def create_app(engine: Engine | None = None) -> FastAPI:
+    """The app. Pass an ``engine`` to run against a prepared one.
+
+    That seam exists for the tests: they drive the real engine with a scripted
+    model, which needs constructing rather than selecting from the environment.
+    """
     app = FastAPI(
         title="Werkhaus",
         version="0.1.0",
@@ -65,6 +71,9 @@ def create_app() -> FastAPI:
         # part of the contract, not a debugging convenience.
         openapi_url="/openapi.json",
     )
+
+    if engine is not None:
+        app.state.prepared_engine = engine
 
     @app.middleware("http")
     async def attach_request_id(request: Request, call_next):  # type: ignore[no-untyped-def]
@@ -126,11 +135,6 @@ def create_app() -> FastAPI:
     app.include_router(rest.router)
     app.include_router(rest.public_router)
     app.include_router(ws.router)
-    if engine_kind() == "stub":
-        from werkhaus.api import dev
-
-        app.include_router(dev.router)
-
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "engine": type(app.state.engine).__name__}

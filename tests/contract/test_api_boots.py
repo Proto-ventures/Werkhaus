@@ -13,7 +13,8 @@ from werkhaus.contract.events import ShiftEventKind
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("WERKHAUS_ENGINE", "null")
+    # No model configured: the API still serves, and says why it cannot work.
+    monkeypatch.delenv("WERKHAUS_MODEL", raising=False)
     with TestClient(create_app()) as c:
         yield c
 

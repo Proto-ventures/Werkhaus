@@ -173,25 +173,6 @@ export function siteUrl(cid: string): string {
 }
 
 /** Stub-only. Present in dev so the whole failure matrix is demoable. */
-export interface DevInfo {
-  current: string | null
-  speed: number | null
-  scenarios: { name: string; title: string; outcome: string }[]
-}
-
-export async function devInfo(): Promise<DevInfo | null> {
-  const response = await fetch('/api/v1/_dev/scenarios')
-  return response.ok ? ((await response.json()) as DevInfo) : null
-}
-
-export async function setSpeed(speed: number): Promise<void> {
-  await fetch('/api/v1/_dev/speed', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ speed }),
-  })
-}
-
 /**
  * Live events, with resume.
  *

@@ -116,8 +116,8 @@ class EngineNotConfigured(WerkhausError):
     status = 503
     message = "This Werkhaus isn't set up to run companies yet."
     hint = (
-        "The server was started without an engine. Set WERKHAUS_ENGINE=stub to "
-        "try it with scripted shifts, or openhands to run real employees."
+        "No employee has a brain to think with yet. Set WERKHAUS_MODEL to a "
+        "model string, and the matching provider key, then restart."
     )
 
 

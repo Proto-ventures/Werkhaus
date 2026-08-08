@@ -1,6 +1,6 @@
 """The org, as the user meets it.
 
-Shared by both engines: the stub fakes what these people produce, the real engine
+The eight people the founder sees. The engine
 runs them as SDK agents, but the user sees the same eight employees either way.
 The `.md` agent definitions in ``agents/`` (M4) carry the prompts and budgets;
 this carries only what the dashboard renders.
@@ -14,7 +14,7 @@ from __future__ import annotations
 from werkhaus.contract.models import Role
 
 # Per-run budget caps, in USD. The sum is the worst case for one full shift
-# ($8.80 + condenser and judge overhead). Kept here so the stub's ledger numbers
+# ($8.80 + condenser and judge overhead). Kept here so the ledger numbers
 # match the real engine's shape and we have a cost model before we have a bill.
 ROLE_BUDGETS: dict[str, float] = {
     "chief": 0.40,

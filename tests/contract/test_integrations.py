@@ -13,6 +13,7 @@ import json
 
 import pytest
 
+from tests.contract.conftest import make_engine
 from werkhaus.contract.catalog import BY_ID, CATALOG, refused_names
 from werkhaus.contract.credentials import classify
 from werkhaus.contract.errors import (
@@ -25,7 +26,7 @@ from werkhaus.contract.integrations import (
     Availability,
     ConnectionStatus,
 )
-from werkhaus.engines.stub.engine import StubEngine
+from werkhaus.engines.common import BaseEngine
 from werkhaus.engines.verify import NullVerifier, VerifyResult
 
 GOOD_TOKEN = "sbp_" + "a1b2c3d4e5" * 3
@@ -41,7 +42,7 @@ class Refusing:
 
 
 async def _engine(tmp_path, verifier=None):
-    engine = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
+    engine = make_engine(tmp_path)
     engine.verifier = verifier or NullVerifier()
     await engine.start()
     company = await engine.create_company("A refill service for cleaning products")
@@ -64,7 +65,7 @@ def test_field_names_are_unique_and_vault_safe() -> None:
         for field in spec.fields:
             assert field.name not in seen, f"{field.name} used twice"
             seen.add(field.name)
-            assert StubEngine._VAULT_NAME.match(field.name), field.name
+            assert BaseEngine._VAULT_NAME.match(field.name), field.name
 
 
 def test_every_step_stands_on_its_own_words() -> None:
@@ -236,7 +237,7 @@ async def test_connection_state_survives_a_restart(tmp_path) -> None:
     )
     await engine.aclose()
 
-    reloaded = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
+    reloaded = make_engine(tmp_path)
     reloaded.verifier = NullVerifier()
     await reloaded.start()
     try:

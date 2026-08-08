@@ -1,6 +1,6 @@
 """One real shift, one real employee.
 
-The loop mirrors the stub's five-phase shape where it can, and is honest where
+The loop keeps the five-phase shape where it can, and is honest where
 it can't: there is no review phase because Vera doesn't exist yet, and progress
 is a stated heuristic rather than a judged score. Both arrive in M4; pretending
 otherwise here would teach the UI to trust theatre.

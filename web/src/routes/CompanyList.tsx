@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, devInfo, type Company, type DevInfo } from '@/api/client'
+import { api, type Company } from '@/api/client'
 import { Mark } from '@/components/bauhaus'
 import { Page } from '@/components/shell'
 import { COMPANY_STATUS, money } from '@/lib/display'
@@ -16,11 +16,9 @@ const STATE = {
 
 export function CompanyList() {
   const [companies, setCompanies] = useState<Company[] | null>(null)
-  const [dev, setDev] = useState<DevInfo | null>(null)
 
   useEffect(() => {
     void api.listCompanies().then(setCompanies)
-    void devInfo().then(setDev)
   }, [])
 
   return (
@@ -98,37 +96,7 @@ export function CompanyList() {
           })}
         </ul>
       )}
-
-      {dev && <DevBar dev={dev} />}
     </Page>
   )
 }
 
-/**
- * Stub-only. Present so the whole failure matrix is one click away — if the team
- * only ever demos the happy path, the UI only learns to render success.
- */
-function DevBar({ dev }: { dev: DevInfo }) {
-  return (
-    <aside className="border-rule-soft text-ink-soft mt-10 border border-dashed p-4 font-mono text-[0.75rem]">
-      <p className="eyebrow">stub engine</p>
-      <p className="mt-1.5 leading-snug">
-        No language model has been called. Add{' '}
-        <code className="bg-secondary px-1">[scenario:name]</code> to a description
-        to pick how the shift goes:
-      </p>
-      <ul className="mt-2 grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
-        {dev.scenarios.map((scenario) => (
-          <li key={scenario.name}>
-            <code className="bg-secondary px-1">{scenario.name}</code>{' '}
-            {scenario.title}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 leading-snug">
-        Shifts run at real speed on purpose (about fifteen minutes). Current
-        multiplier: {dev.speed ?? 1}x.
-      </p>
-    </aside>
-  )
-}

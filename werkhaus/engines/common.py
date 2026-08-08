@@ -5,8 +5,9 @@ the work come from during a shift. Everything else — the company registry, the
 durable brain, the read models, the vault, the workspace, the share gate, the
 kill switch — is the same product behaviour, and it lives here once.
 
-No ``openhands.*`` imports in this module, ever. The stub engine imports it and
-the stub must stay importable (and testable) without the SDK installed.
+No ``openhands.*`` imports in this module, ever. Everything here is about the
+company rather than the model, and it stays readable — and testable — without
+the SDK in the way.
 """
 
 from __future__ import annotations

@@ -19,7 +19,7 @@ os.environ.setdefault("OPENHANDS_SUPPRESS_BANNER", "1")
 
 # The words that must never reach a user-facing string, from the API-level
 # leak test — one list, one truth.
-from tests.contract.test_api_stub import FORBIDDEN_WORDS  # noqa: E402
+from tests.contract.test_api import FORBIDDEN_WORDS  # noqa: E402
 from werkhaus.brain.store import BrainStore  # noqa: E402
 from werkhaus.contract.models import Charter, TaskStatus  # noqa: E402
 from werkhaus.engines.bus import CompanyBus  # noqa: E402

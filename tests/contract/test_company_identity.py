@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.contract.conftest import make_engine
 from werkhaus.engines.common import name_from_idea
-from werkhaus.engines.stub.engine import StubEngine
 
 IDEAS = [
     "A booking tool for mobile dog groomers who run everything through WhatsApp",
@@ -23,7 +23,7 @@ IDEAS = [
 
 @pytest.mark.parametrize("idea", IDEAS)
 async def test_the_company_is_the_founders_not_the_demos(idea, tmp_path) -> None:
-    engine = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
+    engine = make_engine(tmp_path)
     await engine.start()
     try:
         company = await engine.create_company(idea)
@@ -53,7 +53,7 @@ async def test_the_company_is_the_founders_not_the_demos(idea, tmp_path) -> None
 async def test_two_companies_are_two_companies(tmp_path) -> None:
     """The obvious check that would have caught it: same engine, two ideas,
     two different names."""
-    engine = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
+    engine = make_engine(tmp_path)
     await engine.start()
     try:
         first = await engine.create_company(IDEAS[0])
@@ -61,23 +61,6 @@ async def test_two_companies_are_two_companies(tmp_path) -> None:
         assert first.id != second.id
         assert first.name != second.name
         assert first.charter.one_liner != second.charter.one_liner
-    finally:
-        await engine.aclose()
-
-
-async def test_a_scenario_tag_still_chooses_the_scenario(tmp_path) -> None:
-    """The failure matrix stays reachable, and the tag never reaches the charter."""
-    engine = StubEngine(root=tmp_path, seed=42, scenario="happy", speed=400.0)
-    await engine.start()
-    try:
-        company = await engine.create_company(
-            "A refill service for cleaning products [scenario:budget_blowup]"
-        )
-        assert "scenario:" not in company.charter.idea
-        assert company.name == "Refill Service"
-        assert engine._get(company.id).brain.state.metrics["scenario"] == (
-            "budget_blowup"
-        )
     finally:
         await engine.aclose()
 
