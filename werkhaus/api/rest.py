@@ -31,6 +31,8 @@ from werkhaus.contract.models import (
     Shift,
     Task,
     TaskStatus,
+    VaultItem,
+    WorkspaceFile,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["werkhaus"])
@@ -65,6 +67,10 @@ class NoteBody(_Body):
 
 class BudgetBody(_Body):
     cap: Decimal = Field(ge=0)
+
+
+class VaultValueBody(_Body):
+    value: str = Field(min_length=1, max_length=8000)
 
 
 # ------------------------------------------------------------------------ companies
@@ -204,6 +210,50 @@ async def halt(cid: str, engine: EngineDep) -> Company:
 @router.post("/companies/{cid}/resume", response_model=Company)
 async def resume(cid: str, engine: EngineDep) -> Company:
     return await engine.resume(cid)
+
+
+# ---------------------------------------------------------------------------- vault
+@router.get("/companies/{cid}/vault", response_model=list[VaultItem])
+async def list_vault(cid: str, engine: EngineDep) -> list[VaultItem]:
+    return await engine.list_vault(cid)
+
+
+@router.put("/companies/{cid}/vault/{name}", response_model=VaultItem)
+async def set_vault(
+    cid: str, name: str, body: VaultValueBody, engine: EngineDep
+) -> VaultItem:
+    """Write-only from the user's side: the value goes in once and is never
+    echoed back by any endpoint."""
+    return await engine.set_vault(cid, name, body.value)
+
+
+@router.delete(
+    "/companies/{cid}/vault/{name}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_vault(cid: str, name: str, engine: EngineDep) -> Response:
+    await engine.delete_vault(cid, name)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ------------------------------------------------------------------------ workspace
+@router.get("/companies/{cid}/files", response_model=list[WorkspaceFile])
+async def list_files(cid: str, engine: EngineDep) -> list[WorkspaceFile]:
+    return await engine.list_files(cid)
+
+
+@router.get("/companies/{cid}/files/content")
+async def read_file(
+    cid: str, engine: EngineDep, path: str = Query(min_length=1, max_length=500)
+) -> Response:
+    content, mime = await engine.read_file(cid, path)
+    return Response(content=content, media_type=mime)
+
+
+@router.get("/companies/{cid}/site/{path:path}")
+async def read_site_file(cid: str, path: str, engine: EngineDep) -> Response:
+    """The preview the Website tab iframes. Serves only ``workspace/site/``."""
+    content, mime = await engine.read_site_file(cid, path)
+    return Response(content=content, media_type=mime)
 
 
 # -------------------------------------------------------------------------- sharing

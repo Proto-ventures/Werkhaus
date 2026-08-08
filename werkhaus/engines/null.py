@@ -35,6 +35,8 @@ from werkhaus.contract.models import (
     ShiftId,
     Task,
     TaskStatus,
+    VaultItem,
+    WorkspaceFile,
 )
 
 HEARTBEAT_SECONDS = 20
@@ -135,6 +137,26 @@ class NullEngine(Engine):
         raise CompanyNotFound()
 
     async def resume(self, cid: CompanyId) -> Company:
+        raise CompanyNotFound()
+
+    # -------------------------------------------------------------------- vault
+    async def list_vault(self, cid: CompanyId) -> list[VaultItem]:
+        raise CompanyNotFound()
+
+    async def set_vault(self, cid: CompanyId, name: str, value: str) -> VaultItem:
+        raise CompanyNotFound()
+
+    async def delete_vault(self, cid: CompanyId, name: str) -> None:
+        raise CompanyNotFound()
+
+    # ---------------------------------------------------------------- workspace
+    async def list_files(self, cid: CompanyId) -> list[WorkspaceFile]:
+        raise CompanyNotFound()
+
+    async def read_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
+        raise CompanyNotFound()
+
+    async def read_site_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
         raise CompanyNotFound()
 
     # ------------------------------------------------------------------ sharing

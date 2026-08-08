@@ -332,3 +332,26 @@ class AttentionRequest(Base):
     asked_at: datetime
     answered_at: datetime | None = None
     answer: str | None = None
+
+
+# ----------------------------------------------------------------- project vault
+class VaultItem(Base):
+    """A key the company keeps for its work — an API key, an env var, a password.
+
+    The value never appears in this model, in any API response, in the event log,
+    or on a share page. ``hint`` is the only echo the user ever gets, and it is
+    enough to tell two keys apart without being enough to use one.
+    """
+
+    name: str
+    hint: str  # e.g. "ends in …4f" — never the value
+    added_at: datetime
+
+
+class WorkspaceFile(Base):
+    """One file the team wrote while building. Path is workspace-relative;
+    nothing outside ``workspace/`` is ever enumerated."""
+
+    path: str
+    size: int
+    kind: Literal["text", "binary"]

@@ -333,6 +333,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/companies/{cid}/vault": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vault */
+        get: operations["list_vault_api_v1_companies__cid__vault_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/vault/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Vault
+         * @description Write-only from the user's side: the value goes in once and is never
+         *     echoed back by any endpoint.
+         */
+        put: operations["set_vault_api_v1_companies__cid__vault__name__put"];
+        post?: never;
+        /** Delete Vault */
+        delete: operations["delete_vault_api_v1_companies__cid__vault__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Files */
+        get: operations["list_files_api_v1_companies__cid__files_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/files/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read File */
+        get: operations["read_file_api_v1_companies__cid__files_content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/site/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Site File
+         * @description The preview the Website tab iframes. Serves only ``workspace/site/``.
+         */
+        get: operations["read_site_file_api_v1_companies__cid__site__path__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/companies/{cid}/share": {
         parameters: {
             query?: never;
@@ -931,6 +1024,46 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VaultItem
+         * @description A key the company keeps for its work — an API key, an env var, a password.
+         *
+         *     The value never appears in this model, in any API response, in the event log,
+         *     or on a share page. ``hint`` is the only echo the user ever gets, and it is
+         *     enough to tell two keys apart without being enough to use one.
+         */
+        VaultItem: {
+            /** Name */
+            name: string;
+            /** Hint */
+            hint: string;
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+        };
+        /** VaultValueBody */
+        VaultValueBody: {
+            /** Value */
+            value: string;
+        };
+        /**
+         * WorkspaceFile
+         * @description One file the team wrote while building. Path is workspace-relative;
+         *     nothing outside ``workspace/`` is ever enumerated.
+         */
+        WorkspaceFile: {
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "binary";
         };
     };
     responses: never;
@@ -1629,6 +1762,199 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Company"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vault_api_v1_companies__cid__vault_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_vault_api_v1_companies__cid__vault__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VaultValueBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_vault_api_v1_companies__cid__vault__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_files_api_v1_companies__cid__files_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceFile"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_file_api_v1_companies__cid__files_content_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_site_file_api_v1_companies__cid__site__path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

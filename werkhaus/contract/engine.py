@@ -36,6 +36,8 @@ from werkhaus.contract.models import (
     ShiftId,
     Task,
     TaskStatus,
+    VaultItem,
+    WorkspaceFile,
 )
 
 
@@ -121,6 +123,32 @@ class Engine(Protocol):
         ...
 
     async def resume(self, cid: CompanyId) -> Company: ...
+
+    # -------------------------------------------------------------------- vault
+    async def list_vault(self, cid: CompanyId) -> list[VaultItem]:
+        """Names and hints only. There is no engine method that returns a
+        stored value — the team reads the vault, the user never does again."""
+        ...
+
+    async def set_vault(self, cid: CompanyId, name: str, value: str) -> VaultItem: ...
+
+    async def delete_vault(self, cid: CompanyId, name: str) -> None: ...
+
+    # ---------------------------------------------------------------- workspace
+    async def list_files(self, cid: CompanyId) -> list[WorkspaceFile]:
+        """Everything under ``workspace/``, the only directory a user can see.
+        ``_state``, notes and conversations are never enumerated."""
+        ...
+
+    async def read_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
+        """Return ``(content, mime)`` for one workspace file, with a containment
+        check. No user-supplied path escapes ``workspace/``."""
+        ...
+
+    async def read_site_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
+        """Serve the built site under ``workspace/site/`` — what the preview
+        iframe loads. Empty path means ``index.html``."""
+        ...
 
     # ------------------------------------------------------------------ sharing
     async def publish(self, cid: CompanyId, opts: ShareOptions) -> ShareLink: ...

@@ -8,10 +8,9 @@ import {
 } from 'react-router-dom'
 import { Masthead } from '@/components/shell'
 import { Toaster } from '@/components/ui/sonner'
-import { CompanyBoard } from '@/routes/CompanyBoard'
 import { CompanyList } from '@/routes/CompanyList'
 import { Landing } from '@/routes/Landing'
-import { NewCompany } from '@/routes/NewCompany'
+import { Studio } from '@/routes/Studio'
 
 export default function App() {
   return (
@@ -24,8 +23,22 @@ export default function App() {
 
 function Chrome() {
   // On the front door the masthead carries no navigation: there is one thing to
-  // do on that page and it is the box.
-  const onLanding = useLocation().pathname === '/'
+  // do on that page and it is the box. The studio owns its whole viewport and
+  // brings its own chrome.
+  const { pathname } = useLocation()
+  const onLanding = pathname === '/'
+  const inStudio = pathname.startsWith('/c/')
+
+  if (inStudio) {
+    return (
+      <Routes>
+        <Route path="/c/:cid" element={<Studio />} />
+        <Route path="/c/:cid/:section" element={<Studio />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
+  }
+
   return (
     <div className="flex min-h-dvh flex-col">
       <Masthead minimal={onLanding} />
@@ -33,11 +46,9 @@ function Chrome() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/companies" element={<CompanyList />} />
-          <Route path="/new" element={<NewCompany />} />
-          {/* The dashboard is one page. Old bookmarked sub-routes land on it
-              with that section opened. */}
-          <Route path="/c/:cid" element={<CompanyBoard />} />
-          <Route path="/c/:cid/:section" element={<CompanyBoard />} />
+          {/* The interview lives in the studio chat now; the front-door box is
+              the only way in. */}
+          <Route path="/new" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

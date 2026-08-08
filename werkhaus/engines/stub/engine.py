@@ -21,8 +21,11 @@ Two deliberate choices that look like bugs and aren't:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import mimetypes
 import random
+import re
 import secrets
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -41,6 +44,7 @@ from werkhaus.contract.errors import (
     NotFound,
     ShiftAlreadyRunning,
     ShiftNotFound,
+    ValidationFailed,
 )
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.events import ShiftEventKind as K
@@ -68,6 +72,8 @@ from werkhaus.contract.models import (
     ShiftStatus,
     Task,
     TaskStatus,
+    VaultItem,
+    WorkspaceFile,
 )
 from werkhaus.engines.bus import CompanyBus
 from werkhaus.engines.roster import display_name
@@ -364,6 +370,119 @@ class StubEngine(Engine):
                 pass
         company.task_handle = None
         company.clear_activity()
+
+    # -------------------------------------------------------------------- vault
+    _VAULT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
+
+    def _vault_read(self, company: StubCompany) -> dict[str, dict[str, str]]:
+        path = company.brain.paths.state / "vault.json"
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def _vault_write(
+        self, company: StubCompany, vault: dict[str, dict[str, str]]
+    ) -> None:
+        # Values live only in this file, under _state (0700), outside the
+        # workspace the team's file tools can reach with a relative path. They
+        # are never written through the event log — a secret in an append-only
+        # log can never be deleted.
+        path = company.brain.paths.state / "vault.json"
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(vault, indent=2), encoding="utf-8")
+        tmp.chmod(0o600)
+        tmp.replace(path)
+
+    @staticmethod
+    def _vault_item(name: str, entry: dict[str, str]) -> VaultItem:
+        value = entry["value"]
+        return VaultItem(
+            name=name,
+            hint=f"{len(value)} characters, ends in …{value[-2:]}"
+            if len(value) >= 8
+            else f"{len(value)} characters",
+            added_at=datetime.fromisoformat(entry["added_at"]),
+        )
+
+    async def list_vault(self, cid: CompanyId) -> list[VaultItem]:
+        vault = self._vault_read(self._get(cid))
+        return [self._vault_item(n, e) for n, e in sorted(vault.items())]
+
+    async def set_vault(self, cid: CompanyId, name: str, value: str) -> VaultItem:
+        if not self._VAULT_NAME.match(name):
+            raise ValidationFailed(
+                "That name won't work.",
+                hint="Use letters, numbers, dots, dashes or underscores, "
+                "starting with a letter — like STRIPE_KEY.",
+            )
+        company = self._get(cid)
+        vault = self._vault_read(company)
+        vault[name] = {
+            "value": value,
+            "added_at": datetime.now(UTC).isoformat(),
+        }
+        self._vault_write(company, vault)
+        return self._vault_item(name, vault[name])
+
+    async def delete_vault(self, cid: CompanyId, name: str) -> None:
+        company = self._get(cid)
+        vault = self._vault_read(company)
+        if name not in vault:
+            raise NotFound("There's no key with that name.")
+        del vault[name]
+        self._vault_write(company, vault)
+
+    # ---------------------------------------------------------------- workspace
+    MAX_FILE_BYTES = 512 * 1024
+
+    def _workspace_target(self, company: StubCompany, path: str) -> Path:
+        workspace = company.brain.paths.workspace.resolve()
+        target = (workspace / path).resolve()
+        if not target.is_relative_to(workspace):
+            raise NotFound("There's no file at that path.")
+        return target
+
+    async def list_files(self, cid: CompanyId) -> list[WorkspaceFile]:
+        workspace = self._get(cid).brain.paths.workspace
+        if not workspace.exists():
+            return []
+        files: list[WorkspaceFile] = []
+        for path in sorted(workspace.rglob("*")):
+            if not path.is_file() or path.name.startswith("."):
+                continue
+            try:
+                path.read_text(encoding="utf-8")
+                kind = "text"
+            except (UnicodeDecodeError, OSError):
+                kind = "binary"
+            files.append(
+                WorkspaceFile(
+                    path=str(path.relative_to(workspace)),
+                    size=path.stat().st_size,
+                    kind=kind,
+                )
+            )
+        return files[:500]
+
+    async def read_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
+        target = self._workspace_target(self._get(cid), path)
+        if not target.is_file():
+            raise NotFound("There's no file at that path.")
+        mime = mimetypes.guess_type(target.name)[0] or "text/plain"
+        return target.read_bytes()[: self.MAX_FILE_BYTES], mime
+
+    async def read_site_file(self, cid: CompanyId, path: str) -> tuple[bytes, str]:
+        company = self._get(cid)
+        site = (company.brain.paths.workspace / "site").resolve()
+        target = (site / (path or "index.html")).resolve()
+        if not target.is_relative_to(site):
+            raise NotFound("There's no page at that address.")
+        if target.is_dir():
+            target = target / "index.html"
+        if not target.is_file():
+            raise NotFound("There's no page at that address.")
+        mime = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        return target.read_bytes(), mime
 
     # ------------------------------------------------------------------ sharing
     async def publish(self, cid: CompanyId, opts: ShareOptions) -> ShareLink:
@@ -832,6 +951,97 @@ class StubEngine(Engine):
             shift.model_dump_json(indent=2), encoding="utf-8"
         )
 
+    def _seed_site(self, company: StubCompany) -> None:
+        """Write the landing page Kit 'built' as real files.
+
+        This is the one place the stub produces something that can be judged
+        directly: the Website tab iframes it, the Code tab lists these files,
+        and both are telling the truth.
+        """
+        state = company.brain.state
+        charter = state.charter
+        name = state.name
+        one_liner = charter.one_liner if charter else ""
+        audience = charter.audience if charter else ""
+
+        site = company.brain.paths.workspace / "site"
+        site.mkdir(parents=True, exist_ok=True)
+
+        (site / "index.html").write_text(
+            "<!doctype html>\n"
+            '<html lang="en">\n'
+            "<head>\n"
+            '  <meta charset="utf-8">\n'
+            '  <meta name="viewport" content="width=device-width, '
+            'initial-scale=1">\n'
+            f"  <title>{name}</title>\n"
+            '  <link rel="stylesheet" href="styles.css">\n'
+            "</head>\n"
+            "<body>\n"
+            "  <header>\n"
+            f"    <span class=\"brand\">{name}</span>\n"
+            "  </header>\n"
+            "  <main>\n"
+            f"    <h1>{one_liner}</h1>\n"
+            f"    <p class=\"for\">Made for {audience.lower().rstrip('.')}"
+            ".</p>\n"
+            '    <form id="waitlist">\n'
+            '      <label for="email">Be first in line</label>\n'
+            '      <div class="row">\n'
+            '        <input id="email" type="email" required '
+            'placeholder="you@example.com">\n'
+            '        <button type="submit">Join the waitlist</button>\n'
+            "      </div>\n"
+            '      <p class="note" id="confirm" hidden>'
+            "You're on the list. We'll write when it's ready.</p>\n"
+            "    </form>\n"
+            "  </main>\n"
+            "  <footer>\n"
+            f"    <span>&copy; {datetime.now(UTC).year} {name}</span>\n"
+            "  </footer>\n"
+            '  <script src="script.js"></script>\n'
+            "</body>\n"
+            "</html>\n",
+            encoding="utf-8",
+        )
+        (site / "styles.css").write_text(
+            "*{box-sizing:border-box;margin:0}\n"
+            ":root{--paper:#faf6ee;--ink:#26221c;--soft:#6b6355;"
+            "--accent:#8a5a2b}\n"
+            "body{font-family:Georgia,'Times New Roman',serif;"
+            "background:var(--paper);color:var(--ink);min-height:100vh;"
+            "display:flex;flex-direction:column}\n"
+            "header,footer{padding:1.25rem 2rem;font-size:.9rem;"
+            "letter-spacing:.06em}\n"
+            ".brand{text-transform:uppercase;font-weight:700}\n"
+            "main{flex:1;max-width:38rem;margin:0 auto;padding:14vh 2rem 4rem}\n"
+            "h1{font-size:clamp(1.9rem,4.5vw,3rem);line-height:1.15;"
+            "font-weight:400}\n"
+            ".for{margin-top:1.25rem;color:var(--soft);font-size:1.05rem;"
+            "line-height:1.5}\n"
+            "form{margin-top:3rem}\n"
+            "label{display:block;font-size:.8rem;text-transform:uppercase;"
+            "letter-spacing:.12em;color:var(--soft)}\n"
+            ".row{display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap}\n"
+            "input{flex:1;min-width:14rem;padding:.8rem 1rem;font:inherit;"
+            "border:1px solid var(--ink);background:#fff}\n"
+            "button{padding:.8rem 1.4rem;font:inherit;cursor:pointer;"
+            "border:1px solid var(--ink);background:var(--ink);color:var(--paper)}\n"
+            "button:hover{background:var(--accent);border-color:var(--accent)}\n"
+            ".note{margin-top:1rem;color:var(--accent)}\n"
+            "footer{color:var(--soft)}\n",
+            encoding="utf-8",
+        )
+        (site / "script.js").write_text(
+            "document.getElementById('waitlist').addEventListener('submit',"
+            "function(e){\n"
+            "  e.preventDefault();\n"
+            "  document.getElementById('confirm').hidden = false;\n"
+            "  document.getElementById('email').value = '';\n"
+            "});\n",
+            encoding="utf-8",
+        )
+
     def _write_artifact(
         self, company: StubCompany, sid: ShiftId, rid: str, spec: Any
     ) -> None:
@@ -843,9 +1053,15 @@ class StubEngine(Engine):
             )
             return
         target.parent.mkdir(parents=True, exist_ok=True)
+        preview_url = spec.preview_url
         if spec.kind is ArtifactKind.SITE:
             target.mkdir(parents=True, exist_ok=True)
             (target / "index.md").write_text(spec.body, encoding="utf-8")
+            # The site is the one artifact that either works or doesn't, so the
+            # stub builds a real one: actual files in workspace/site/, served at
+            # a real URL the Website tab can load.
+            self._seed_site(company)
+            preview_url = f"/api/v1/companies/{company.id}/site/"
         else:
             target.write_text(spec.body, encoding="utf-8")
 
@@ -863,7 +1079,7 @@ class StubEngine(Engine):
             role_id=rid,
             shift_id=sid,
             mime=spec.mime,
-            preview_url=spec.preview_url,
+            preview_url=preview_url,
         )
         company.bus.emit(
             K.ARTIFACT_UPDATED if existing else K.ARTIFACT_CREATED,

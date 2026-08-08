@@ -57,6 +57,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export type Objection = components['schemas']['Objection']
 export type AttentionRequest = components['schemas']['AttentionRequest']
 export type Budget = components['schemas']['Budget']
+export type VaultItem = components['schemas']['VaultItem']
+export type WorkspaceFile = components['schemas']['WorkspaceFile']
+export type ShareLink = components['schemas']['ShareLink']
 
 export const api = {
   listCompanies: () => request<Company[]>('/companies'),
@@ -114,6 +117,35 @@ export const api = {
     const response = await fetch(`/api/v1/artifacts/${aid}/content`)
     return response.ok ? response.text() : ''
   },
+  listVault: (cid: string) => request<VaultItem[]>(`/companies/${cid}/vault`),
+  setVault: (cid: string, name: string, value: string) =>
+    request<VaultItem>(`/companies/${cid}/vault/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+  deleteVault: (cid: string, name: string) =>
+    request<void>(`/companies/${cid}/vault/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+  listFiles: (cid: string) => request<WorkspaceFile[]>(`/companies/${cid}/files`),
+  readFile: async (cid: string, path: string): Promise<string> => {
+    const response = await fetch(
+      `/api/v1/companies/${cid}/files/content?path=${encodeURIComponent(path)}`,
+    )
+    return response.ok ? response.text() : ''
+  },
+  publish: (cid: string) =>
+    request<ShareLink>(`/companies/${cid}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ include_shifts: true, include_artifacts: true }),
+    }),
+  unpublish: (cid: string) =>
+    request<void>(`/companies/${cid}/share`, { method: 'DELETE' }),
+}
+
+/** Where the built site is served. Ends in a slash so relative assets work. */
+export function siteUrl(cid: string): string {
+  return `/api/v1/companies/${cid}/site/`
 }
 
 /** Stub-only. Present in dev so the whole failure matrix is demoable. */
