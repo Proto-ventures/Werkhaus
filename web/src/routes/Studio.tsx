@@ -321,6 +321,12 @@ export function Studio() {
               onUnshare={() =>
                 act(() => api.unpublish(cid), 'The public page is down.')
               }
+              onAutonomy={(value) =>
+                act(
+                  () => api.updateCharter(cid, { autonomy: value }),
+                  'Changed. It applies from the next shift.',
+                )
+              }
             />
           )}
           {tab === 'website' && <Website company={company} artifacts={artifacts} />}

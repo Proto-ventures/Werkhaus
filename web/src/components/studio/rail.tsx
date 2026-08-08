@@ -34,10 +34,61 @@ interface Onboarding {
   said: Said[]
 }
 
-const QUESTIONS = [
+interface QuestionOption {
+  value: string
+  label: string
+  blurb: string
+}
+
+interface Question {
+  key: string
+  ask: string
+  placeholder: string
+  optional: boolean
+  options?: QuestionOption[]
+}
+
+/** The autonomy dial. Both extremes burn budget fast — one on unattended work,
+ *  one on questions and planning. The middle is the default for a reason. */
+export const AUTONOMY_OPTIONS: QuestionOption[] = [
+  {
+    value: 'full_auto',
+    label: 'full auto',
+    blurb: 'Shifts run themselves, decisions are made for you, you see results. Fastest, least yours.',
+  },
+  {
+    value: 'semi_auto',
+    label: 'semi auto',
+    blurb: 'Shifts run themselves; small calls are made for you, big ones ask first.',
+  },
+  {
+    value: 'balanced',
+    label: 'balanced',
+    blurb: 'You start shifts. Small calls are made for you; big ones ask. The default.',
+  },
+  {
+    value: 'limited',
+    label: 'more control',
+    blurb: 'You start shifts, and the team checks in on small and big decisions.',
+  },
+  {
+    value: 'full_control',
+    label: 'full control',
+    blurb: 'Nothing happens unasked. Every direction is a question first. Slowest, most yours.',
+  },
+]
+
+const QUESTIONS: Question[] = [
+  {
+    key: 'autonomy',
+    ask: 'First: how much should the team do on its own? You can change this later in settings.',
+    placeholder: '',
+    optional: false,
+    options: AUTONOMY_OPTIONS,
+  },
   {
     key: 'audience',
-    ask: 'First: who is this for? The more specific you are, the better the research gets.',
+    ask: 'Who is this for? The more specific you are, the better the research gets.',
     placeholder: 'People in small UK flats who buy few objects but care what they are',
     optional: false,
   },
@@ -53,7 +104,7 @@ const QUESTIONS = [
     placeholder: 'UK only for the first year. No paid advertising.',
     optional: true,
   },
-] as const
+]
 
 const PLAN_ITEMS = [
   'Research the market and the competition, with sources for every claim',
@@ -138,6 +189,17 @@ export function Rail({
     advance({ who: 'you', text: 'Skip that one.' })
   }
 
+  async function pick(option: QuestionOption) {
+    const question = QUESTIONS[onb.step]
+    try {
+      await onCharter({ [question.key]: option.value })
+    } catch (e) {
+      toast.error((e as Error).message)
+      return
+    }
+    advance({ who: 'you', text: option.label })
+  }
+
   function advance(answer: Said) {
     const next = onb.step + 1
     const said: Said[] = [...onb.said, answer]
@@ -183,6 +245,24 @@ export function Rail({
         {interviewing && (
           <AdaTurn>
             {QUESTIONS[onb.step].ask}
+            {QUESTIONS[onb.step].options && (
+              <span className="mt-2.5 flex flex-col items-start gap-1.5">
+                {QUESTIONS[onb.step].options!.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => pick(option)}
+                    className="btn block py-1.5 text-left text-[0.8125rem]"
+                  >
+                    <span className="display block">{option.label}</span>
+                    <span className="text-ink-soft block text-[0.75rem] leading-snug font-normal normal-case">
+                      {option.blurb}
+                    </span>
+                  </button>
+                ))}
+              </span>
+            )}
             {QUESTIONS[onb.step].optional && (
               <button
                 type="button"
@@ -222,9 +302,12 @@ export function Rail({
 
       <Composer
         busy={busy}
+        disabled={interviewing && Boolean(QUESTIONS[onb.step].options)}
         placeholder={
           interviewing
-            ? QUESTIONS[onb.step].placeholder
+            ? QUESTIONS[onb.step].options
+              ? 'pick one above'
+              : QUESTIONS[onb.step].placeholder
             : 'Tell the team something, in your words'
         }
         hint={
@@ -477,11 +560,13 @@ function ShiftGroupCard({ group }: { group: Extract<FeedItem, { t: 'group' }> })
 
 function Composer({
   busy,
+  disabled = false,
   placeholder,
   hint,
   onSubmit,
 }: {
   busy: boolean
+  disabled?: boolean
   placeholder: string
   hint: string
   onSubmit: (text: string) => void
@@ -507,6 +592,7 @@ function Composer({
         <textarea
           rows={2}
           value={text}
+          disabled={disabled}
           placeholder={placeholder}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

@@ -34,6 +34,7 @@ from werkhaus.contract.errors import (
     ShiftAlreadyRunning,
     ShiftNotFound,
     ValidationFailed,
+    WerkhausError,
 )
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.events import ShiftEventKind as K
@@ -290,6 +291,48 @@ class BaseEngine(Engine):
         company = self._make_runtime(brain, bus)
         self._companies[cid] = company
         return company
+
+    # ---------------------------------------------------------- autonomy
+    AUTO_CHAIN_LIMIT = 2
+    """How many shifts the team may start on its own after one the user
+    started. A bound, not a budget: the money caps still apply on top."""
+
+    def _schedule_auto_chain(self, company: CompanyRuntime) -> None:
+        """On the auto side of the dial, a finished shift starts the next one.
+
+        Bounded three ways — the chain limit, the money cap, and done-ness —
+        because "runs by itself" must never mean "spends by itself forever".
+        """
+        charter = company.brain.state.charter
+        if charter is None or charter.autonomy not in ("full_auto", "semi_auto"):
+            return
+        if company.spent >= company.cap or company.halted:
+            return
+        if company.brain.state.progress.percent >= 100:
+            return
+        chained = int(company.brain.state.metrics.get("auto_chained", 0) or 0)
+        if chained >= self.AUTO_CHAIN_LIMIT:
+            return
+
+        async def _chain() -> None:
+            # Wait for the current shift's task to actually finish.
+            for _ in range(150):
+                handle = company.task_handle
+                if handle is None or handle.done():
+                    break
+                await asyncio.sleep(0.2)
+            try:
+                company.brain.record_metric("auto_chained", chained + 1)
+                await self.start_shift(company.id, auto=True)
+                company.bus.emit(
+                    K.ROLE_SAID,
+                    "Ada: The team is carrying straight on — that's the "
+                    "autonomy you chose. Press stop anytime.",
+                )
+            except WerkhausError:
+                pass  # halted, out of budget, or already running: all fine
+
+        asyncio.create_task(_chain())
 
     def _ensure_can_start(self, company: CompanyRuntime) -> None:
         """The three reasons a shift may not start, in the order the user

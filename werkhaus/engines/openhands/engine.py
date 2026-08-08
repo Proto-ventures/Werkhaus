@@ -96,12 +96,16 @@ class OpenHandsEngine(BaseEngine):
         return company.company()
 
     # ------------------------------------------------------------------ shifts
-    async def start_shift(self, cid: CompanyId, focus: str | None = None) -> Shift:
+    async def start_shift(
+        self, cid: CompanyId, focus: str | None = None, *, auto: bool = False
+    ) -> Shift:
         from werkhaus.engines.openhands.shift import DEFAULT_AGENDA, run_shift
 
         company = self._get(cid)
         assert isinstance(company, OpenHandsCompany)
         self._ensure_can_start(company)
+        if not auto:
+            company.brain.record_metric("auto_chained", 0)
 
         if focus:
             agenda = [focus.strip()]

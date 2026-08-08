@@ -154,6 +154,36 @@ has real URLs; the artifact is `sourced` only for visited pages; the ledger has
 a nonzero cost; `GET /api/v1/companies/{id}/events` reads like an employee, not
 a model; halt mid-shift returns in under two seconds and nothing is lost.
 
+#### Free-tier providers that can carry a shift
+
+A shift is 30–80 model calls. Measured/verified against provider docs, Aug 2026
+— these change often, re-check before relying on them:
+
+| Provider (litellm prefix) | Key env | Free allowance | Shifts/day, roughly |
+|---|---|---|---|
+| Google AI Studio (`gemini/`) | `GEMINI_API_KEY` | ~1,500 req/day, 15/min | ~15–20 |
+| Groq (`groq/`) | `GROQ_API_KEY` | 30/min, ~1k–14.4k/day by model | ~10–30 |
+| Cerebras (`cerebras/`) | `CEREBRAS_API_KEY` | 30/min, 14.4k/day, 1M tok/day | ~10–20 |
+| Mistral (`mistral/`) | `MISTRAL_API_KEY` | ~1B tok/month (opt-in training) | many |
+| OpenRouter `:free` (`openrouter/`) | `OPENROUTER_API_KEY` | 50 req/day; 1,000/day after a one-time $10 | 0–1, then ~10 |
+| NVIDIA NIM (`nvidia_nim/`) | `NVIDIA_NIM_API_KEY` | per-minute throttle; hot models saturated | varies |
+
+Free tiers throttle by the minute; `WERKHAUS_LLM_RETRIES` /
+`WERKHAUS_LLM_RETRY_MIN_WAIT` / `WERKHAUS_LLM_RETRY_MAX_WAIT` make the engine
+wait out a window instead of failing the shift. Free usually also means the
+provider trains on the traffic — say so anywhere a user brings their own key.
+
+#### The autonomy dial
+
+Onboarding asks "how much should the team do on its own?" —
+`full_auto | semi_auto | balanced | limited | full_control`, stored on the
+charter, changeable in settings. Both ends spend faster: the auto end on
+unattended shifts (finished shifts chain the next one, bounded by
+`AUTO_CHAIN_LIMIT` and the money caps), the control end on questions and
+planning. `balanced` is the default. The ask-before-deciding thresholds land
+with the full roster in M4; today the dial controls chaining and the
+onboarding depth.
+
 ### Checks
 
 ```bash

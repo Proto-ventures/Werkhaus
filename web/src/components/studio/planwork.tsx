@@ -25,6 +25,7 @@ import {
   LedgerTable,
   ObjectionRow,
 } from '@/components/dash'
+import { AUTONOMY_OPTIONS } from '@/components/studio/rail'
 import { ArtifactReader } from '@/components/work'
 import { money } from '@/lib/display'
 import { cn } from '@/lib/utils'
@@ -62,6 +63,7 @@ export function PlanWork({
   onHalt,
   onShare,
   onUnshare,
+  onAutonomy,
 }: {
   company: Company
   artifacts: Artifact[]
@@ -76,6 +78,7 @@ export function PlanWork({
   onHalt: () => void
   onShare: () => void
   onUnshare: () => void
+  onAutonomy: (value: string) => void
 }) {
   const [reading, setReading] = useState<Artifact | null>(null)
   const [body, setBody] = useState<string | null>(null)
@@ -222,6 +225,7 @@ export function PlanWork({
               onHalt={onHalt}
               onShare={onShare}
               onUnshare={onUnshare}
+              onAutonomy={onAutonomy}
             />
           )}
         </div>
@@ -323,21 +327,60 @@ function SettingsPane({
   onHalt,
   onShare,
   onUnshare,
+  onAutonomy,
 }: {
   company: Company
   busy: boolean
   onHalt: () => void
   onShare: () => void
   onUnshare: () => void
+  onAutonomy: (value: string) => void
 }) {
+  const autonomy = (company.charter as { autonomy?: string }).autonomy ?? 'balanced'
   return (
     <div className="space-y-6">
       <div>
         <h2 className="display text-xl">Settings &amp; keys</h2>
         <p className="text-ink-soft mt-1 max-w-xl text-[0.8125rem] leading-snug">
-          Keys the team can use, the public link, and the stop button. Nothing
-          here is needed day to day.
+          How much the team does on its own, keys it can use, the public link,
+          and the stop button.
         </p>
+      </div>
+
+      <div className="panel">
+        <p className="border-rule-soft border-b px-4 py-3">
+          <span className="display text-base">On its own</span>
+          <span className="text-ink-faint ml-3 font-mono text-[0.6875rem]">
+            both ends spend faster — one on work, one on questions
+          </span>
+        </p>
+        <div className="divide-rule-soft divide-y">
+          {AUTONOMY_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              disabled={busy}
+              aria-pressed={autonomy === option.value}
+              onClick={() => onAutonomy(option.value)}
+              className={cn(
+                'focus-visible:ring-ring flex w-full items-baseline gap-3 px-4 py-2.5 text-left focus-visible:ring-2 focus-visible:outline-none',
+                autonomy === option.value ? 'bg-ink text-paper' : 'hover:bg-secondary',
+              )}
+            >
+              <span className="display w-28 shrink-0 text-[0.8125rem]">
+                {option.label}
+              </span>
+              <span
+                className={cn(
+                  'min-w-0 text-[0.75rem] leading-snug',
+                  autonomy === option.value ? 'text-paper/80' : 'text-ink-soft',
+                )}
+              >
+                {option.blurb}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <Vault cid={company.id} />

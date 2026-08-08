@@ -37,6 +37,9 @@ _KEY_ENVS = {
     "gemini": "GEMINI_API_KEY",
     "groq": "GROQ_API_KEY",
     "together_ai": "TOGETHERAI_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "cerebras": "CEREBRAS_API_KEY",
+    "github": "GITHUB_API_KEY",
 }
 
 
@@ -82,6 +85,12 @@ def build_llm(usage_id: str) -> LLM:
         output_cost_per_token=_cost_per_token(
             "WERKHAUS_OUTPUT_COST_PER_MTOK", DEFAULT_OUTPUT_PER_MTOK
         ),
+        # Free and trial tiers throttle by the minute. Patience is cheaper
+        # than a failed shift: these defaults ride out a 60s window, and the
+        # env knobs stretch further for tightly capped providers.
+        num_retries=int(os.getenv("WERKHAUS_LLM_RETRIES", "6")),
+        retry_min_wait=int(os.getenv("WERKHAUS_LLM_RETRY_MIN_WAIT", "10")),
+        retry_max_wait=int(os.getenv("WERKHAUS_LLM_RETRY_MAX_WAIT", "90")),
     )
 
 

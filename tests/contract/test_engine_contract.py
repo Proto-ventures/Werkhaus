@@ -217,3 +217,39 @@ async def test_cold_reload_loses_nothing(kind, tmp_path) -> None:
         ]
     finally:
         await reloaded.aclose()
+
+
+async def test_full_auto_chains_the_next_shift(tmp_path) -> None:
+    """On the auto side of the dial a finished shift starts the next one,
+    bounded by the chain limit — never an unbounded loop."""
+    engine = _make("stub", tmp_path)
+    await engine.start()
+    try:
+        company = await engine.create_company("x")
+        await engine.update_charter(company.id, CharterPatch(autonomy="full_auto"))
+        await engine.start_shift(company.id)
+
+        deadline = time.monotonic() + 30
+        count = 0
+        while time.monotonic() < deadline:
+            count = (await engine.get_company(company.id)).shift_count
+            if count >= 2:
+                break
+            await asyncio.sleep(0.1)
+        assert count >= 2, "full_auto never chained a second shift"
+        await engine.halt(company.id)
+    finally:
+        await engine.aclose()
+
+
+async def test_balanced_never_chains(tmp_path) -> None:
+    engine = _make("stub", tmp_path)
+    await engine.start()
+    try:
+        company = await engine.create_company("x")  # autonomy defaults balanced
+        await engine.start_shift(company.id)
+        await _wait_done(engine, company.id)
+        await asyncio.sleep(1.0)
+        assert (await engine.get_company(company.id)).shift_count == 1
+    finally:
+        await engine.aclose()

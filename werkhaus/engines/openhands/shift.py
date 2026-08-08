@@ -213,6 +213,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
 
         if status is ShiftStatus.COMPLETED:
             bus.emit(K.SHIFT_COMPLETED, summary, shift_id=sid)
+            engine._schedule_auto_chain(company)
         elif status is ShiftStatus.BUDGET_EXCEEDED:
             if company.spent >= company.cap:
                 brain.record_metric("halted", True)

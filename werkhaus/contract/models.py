@@ -40,6 +40,17 @@ class CompanyStatus(StrEnum):
     ARCHIVED = "archived"
 
 
+Autonomy = Literal["full_auto", "semi_auto", "balanced", "limited", "full_control"]
+"""How much rope the team gets, chosen at onboarding and changeable anytime.
+
+The dial trades interruption for consumption: the auto end runs shifts on its
+own and decides small things without asking (burns budget fast, few questions);
+the control end never starts work unasked and checks in on everything (burns
+budget fast too — on questions and planning instead of work). ``balanced`` is
+the default: shifts start manually, small calls are made for you, big ones ask.
+"""
+
+
 class Charter(Base):
     """What the company is for.
 
@@ -54,6 +65,7 @@ class Charter(Base):
     success_looks_like: str  # the judge objective — stable across shifts
     constraints: list[str] = Field(default_factory=list)
     tone: str | None = None
+    autonomy: Autonomy = "balanced"
 
 
 class Progress(Base):
@@ -318,6 +330,7 @@ class CharterPatch(BaseModel):
     success_looks_like: str | None = None
     constraints: list[str] | None = None
     tone: str | None = None
+    autonomy: Autonomy | None = None
 
 
 class AttentionRequest(Base):

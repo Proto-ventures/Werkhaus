@@ -112,10 +112,14 @@ class StubEngine(BaseEngine):
         return company.company()
 
     # ------------------------------------------------------------------ shifts
-    async def start_shift(self, cid: CompanyId, focus: str | None = None) -> Shift:
+    async def start_shift(
+        self, cid: CompanyId, focus: str | None = None, *, auto: bool = False
+    ) -> Shift:
         company = self._get(cid)
         assert isinstance(company, StubCompany)
         self._ensure_can_start(company)
+        if not auto:
+            company.brain.record_metric("auto_chained", 0)
 
         shift = company.brain.open_shift(
             number=len(company.brain.state.shifts) + 1,
@@ -457,6 +461,7 @@ class StubEngine(BaseEngine):
 
         if status is ShiftStatus.COMPLETED and not blocked:
             company.bus.emit(K.SHIFT_COMPLETED, scenario.shift_summary, shift_id=sid)
+            self._schedule_auto_chain(company)
         elif status is ShiftStatus.BUDGET_EXCEEDED:
             brain.record_metric("halted", True)
             company.bus.emit(
