@@ -243,12 +243,12 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             )
         company.clear_activity()
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("real shift %s blew up", sid)
         if brain.state.shifts[sid].status is ShiftStatus.RUNNING:
             brain.close_shift(
                 sid, status=ShiftStatus.FAILED,
-                failure_reason="Something went wrong and the shift stopped.",
+                failure_reason=_exception_reason(exc),
                 cost=cents(_run_cost_estimate(conversation)),
             )
         company.clear_activity()
@@ -327,6 +327,30 @@ def _failure_reason(status: ShiftStatus) -> str | None:
     if status is ShiftStatus.FAILED:
         return "Maya couldn't finish this one. The work so far is saved."
     return None
+
+
+def _exception_reason(exc: BaseException) -> str:
+    """A person can act on "the provider is at its limit"; they cannot act on
+    a wrapped stack of provider exceptions. Walk the chain, name the two
+    failure families that actually happen, fall back to the honest generic."""
+    chain: list[BaseException] = []
+    seen = exc
+    while seen is not None and seen not in chain:
+        chain.append(seen)
+        seen = seen.__cause__ or seen.__context__
+    text = " ".join(f"{type(e).__name__}: {e}" for e in chain).lower()
+    if "ratelimit" in text or "resourceexhausted" in text or "429" in text:
+        return (
+            "The service the team thinks with is over its limit for now. "
+            "Nothing was lost — try again later, or raise the limit with "
+            "your provider."
+        )
+    if "authentication" in text or "401" in text or "invalid api key" in text:
+        return (
+            "The team's key was refused by its provider. Check the key and "
+            "start the shift again."
+        )
+    return "Something went wrong and the shift stopped."
 
 
 def _close_when_done(run: asyncio.Future, conversation: LocalConversation) -> None:
