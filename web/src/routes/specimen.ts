@@ -9,14 +9,14 @@
 export type Mark = 'sourced' | 'inferred' | 'assumption'
 
 export const HEADER = {
-  company: 'Northwind Ceramics',
-  shift: 1,
-  minutes: 12,
-  cost: '6.84',
+  company: 'Booking Tool',
+  shift: 3,
+  minutes: 14,
+  cost: '9.20',
   idea:
-    'A monthly subscription box for hand-thrown ceramics. One nice object a ' +
-    'month, made by a real potter, sent to people who live in small flats and ' +
-    "don't want more clutter.",
+    'A booking tool for mobile dog groomers who run everything through ' +
+    'WhatsApp. It plans the day as a route, not a list, and reminds the ' +
+    'customer the evening before.',
 }
 
 export interface Panel {
@@ -37,40 +37,40 @@ export const PANELS: Panel[] = [
 ]
 
 export const RESEARCH = {
-  head: ['Box', 'Price / mo', 'What arrives', 'Names the maker?'],
+  head: ['App', 'Price / mo', 'Built for', 'Plans a route?'],
   rows: [
-    ['Pottery Box', '£18', '2-3 small pieces', 'No'],
-    ['Clay Collective', '£29', '1 piece + a zine', 'Yes'],
-    ['The Pottery Box', '£32', '1-2 pieces, seasonal', 'Yes'],
-    ['Handmade Home', '£24', 'mixed homeware', 'No'],
-    ['Northern Clay', '£45', '1 large piece, quarterly', 'Yes'],
-    ['Muddy Hands', '£22', "beginner's kit", 'n/a'],
+    ['Pawfect Books', '£12', 'salons with a front desk', 'No'],
+    ['Groomly', '£29', 'salons, multi-chair', 'No'],
+    ['Kennel Desk', '£39', 'kennels and daycare', 'No'],
+    ['MoeGo', '£49', 'salons and mobile', 'Partly'],
+    ['Time To Pet', '£45', 'dog walkers', 'Yes'],
+    ['Setmore', '£0-£9', 'anyone with appointments', 'No'],
   ],
   sources: [
-    'pottery-box.co.uk/pricing',
-    'claycollective.uk/subscribe',
-    'thepotterybox.com/plans',
+    'moego.pet/pricing',
+    'timetopet.com/pricing',
+    'groomly.app/plans',
   ],
   found:
-    'Every box at £29 or above names the potter. None below £25 does. Nobody ' +
-    'sends exactly one object.',
+    'Nine apps priced £12 to £49. Only two think about travel between jobs, ' +
+    'and neither of those is built for grooming.',
   caveat:
-    'Two more appear in search results but their sites are dead. Excluded ' +
-    'rather than guessed at.',
+    'Two more appear in search results but publish no price. Excluded rather ' +
+    'than guessed at.',
 }
 
 export const POSITIONING = {
-  title: 'Price at £29/mo, not £9',
+  title: 'Price at £29/mo, and sell the route',
   why:
-    'Every box in the table that names its maker sits at £29 or above, and ' +
-    'naming the maker is the whole pitch.',
+    'Every app that plans a route sits at £45 or above and is built for ' +
+    'somebody else. The gap is grooming-shaped, and £29 sits under it.',
   instead: [
-    '£9/mo, which sits below the boxes that send unbranded seconds',
-    '£45/mo quarterly, which Northern Clay already owns and which kills the habit',
+    '£12/mo, which competes with diary apps a groomer already tolerates',
+    '£49/mo, which MoeGo owns and defends with a decade of features',
   ],
   contested:
-    'Reasoned from competitor pricing, not from any willingness-to-pay ' +
-    'evidence. Defensible, not validated.',
+    'Reasoned from rival pricing, not from any willingness-to-pay evidence. ' +
+    'Defensible, not validated.',
 }
 
 /** The whole point of this panel is that most of the rows are guesses. */
@@ -78,23 +78,25 @@ export const ECONOMICS = {
   head: ['Line', 'Per box', 'Where it came from'],
   rows: [
     ['Price', '£29.00', 'Decided this shift', false],
-    ['Potter cost', '£11.00', 'Typical wholesale, roughly 40% of retail', true],
-    ['Packaging', '£2.20', 'Protective packing for one piece', true],
-    ['UK shipping', '£4.80', 'Tracked, ceramics-safe, no quote yet', true],
+    ['Hosting and database', '£0.00', 'Inside the free tiers at this size', false],
+    ['Texts for reminders', '£3.40', 'Roughly 85 jobs a month, one text each', true],
+    ['Support', '£6.00', 'Fifteen minutes a customer a month', true],
     ['Payments', '£1.15', "Stripe's published pricing", false],
   ] as [string, string, string, boolean][],
-  total: ['Contribution', '£9.85'],
-  gap: 'Breakage is not modelled at all. One replacement in twenty removes about £1.45 a box.',
+  total: ['Contribution', '£18.45'],
+  gap: 'Churn is not modelled at all. A groomer who leaves after two months never repays the first conversation.',
 }
 
 export const SITE = {
-  url: 'northwind-ceramics.werkhaus.site',
-  headline: "One pot a month. You'll know who made it.",
-  sub: 'Every month we send a single hand-thrown piece from one potter, with their name on it.',
+  url: 'groomer-rounds.netlify.app',
+  headline: 'Your day, in the order the roads make sense.',
+  sub: 'Bookings, routes and the evening-before reminder, without a single WhatsApp thread.',
   checks: [
     'Builds clean',
     'Renders down to 360px',
-    'Waitlist round-trips a real email address',
+    'A signup writes a real row to your own database',
+    'The confirmation email arrives',
+    'A test card completes the checkout',
   ],
 }
 
@@ -104,41 +106,41 @@ export const OBJECTIONS = [
     against: 'positioning',
     about: 'positioning.md',
     text:
-      'The £29 price is defended entirely with competitor pricing. Not one ' +
-      'person in the target audience has been asked what they would pay.',
+      'The £29 price is defended entirely with rival pricing. Not one working ' +
+      'groomer has been asked what they would pay.',
     settled:
-      'Five conversations with people who match the audience, asking what they ' +
-      'currently spend on objects like this.',
+      'Five conversations with mobile groomers, asking what they pay today and ' +
+      'what they would drop for this.',
   },
   {
     severity: 'serious' as const,
     against: 'economics',
     about: 'unit-economics.md',
     text:
-      'Contribution of £9.85 rests on three cost lines that are guesses, and ' +
-      'breakage is missing from the model entirely.',
-    settled: 'One quote from a potter and one from a courier.',
+      'Contribution of £18.45 rests on two cost lines that are guesses, and ' +
+      'churn is missing from the model entirely.',
+    settled: 'One month of real usage from three groomers.',
   },
   {
     severity: 'noted' as const,
     against: 'research',
     about: 'channels.md',
     text:
-      'The speciality-coffee overlap is labelled a hunch, which is honest, but ' +
-      'it is also the cheapest thing on the list to check and nobody was asked ' +
-      'to check it.',
-    settled: 'An afternoon in one coffee forum.',
+      'The grooming-forum overlap is labelled a hunch, which is honest, but it ' +
+      'is also the cheapest thing on the list to check and nobody was asked to ' +
+      'check it.',
+    settled: 'An afternoon in one grooming forum.',
   },
 ]
 
 export const VERDICT = {
-  percent: 64,
+  percent: 94,
   headline:
-    'Positioning and price are settled and the page is live. Nobody has said ' +
-    'they would buy it.',
+    'It works end to end — signups land, emails send, a card goes through. ' +
+    'Nobody has actually paid yet.',
   missing: [
-    'No evidence any real person will pay £29',
-    'The cost model has no supplier quotes behind it',
-    'Zero waitlist signups so far',
+    'No evidence any working groomer will pay £29',
+    'Two cost lines are still guesses, and churn is unmodelled',
+    'The checkout has only ever taken test cards',
   ],
 }

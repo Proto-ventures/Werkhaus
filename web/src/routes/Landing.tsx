@@ -177,13 +177,14 @@ function Hero() {
           <h1 className="display text-[2rem] leading-[1.08] sm:text-[2.75rem]">
             Describe a business.
             <br />
-            Eight employees work a shift on it.
+            Eight employees build it.
           </h1>
 
           <p className="text-ink-soft mt-5 max-w-xl text-[1.0625rem] leading-relaxed">
-            You get market research with the sources attached, a price you can
-            defend, and a landing page that loads. Vera, the eighth, spends her
-            shift trying to prove the other seven wrong.
+            Not a mockup — a working product. Research with its sources, a price
+            you can defend, a database of your own, and a page at a real address
+            that takes signups and payments. Vera, the eighth, spends her shift
+            trying to prove the other seven wrong.
           </p>
 
           <div className="panel mt-8">
@@ -235,8 +236,8 @@ function Hero() {
           </div>
 
           <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
-            <Fact k="eight" v="employees on the floor" />
-            <Fact k="one" v="paid to attack the rest" />
+            <Fact k="three" v="shifts to a working product" />
+            <Fact k="one" v="employee paid to attack the rest" />
             <Fact k="every" v="claim marked with its source" />
           </dl>
         </div>
@@ -245,7 +246,7 @@ function Hero() {
           {/* Labelled, because an unlabelled demo of one example business is
               how a product comes to look like it only builds that business. */}
           <p className="eyebrow text-ink-faint bg-paper/85 mb-2 inline-block px-1.5 py-0.5">
-            a recording of one shift · not your company
+            a recording · three shifts, sped up
           </p>
           <LiveShift />
         </div>
