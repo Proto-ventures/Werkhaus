@@ -170,7 +170,8 @@ class Task(Base):
     claimed_by_shift: ShiftId | None = None
     priority: int = Field(default=3, ge=1, le=5)
     depends_on: list[TaskId] = Field(default_factory=list)
-    created_in_shift: ShiftId
+    created_in_shift: ShiftId | None = None
+    """None when nobody was on shift — the publish gate files work of its own."""
     closed_in_shift: ShiftId | None = None
 
 

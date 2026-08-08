@@ -4,6 +4,29 @@
  */
 
 export interface paths {
+    "/api/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health
+         * @description What this server is, in enough detail to explain "nothing is working".
+         *
+         *     Deliberately no filesystem path: the data directory is an absolute home
+         *     path, which is a finding everywhere else in this codebase.
+         */
+        get: operations["health_api_v1_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/allowance": {
         parameters: {
             query?: never;
@@ -1056,7 +1079,7 @@ export interface components {
             /** Depends On */
             depends_on?: string[];
             /** Created In Shift */
-            created_in_shift: string;
+            created_in_shift?: string | null;
             /** Closed In Shift */
             closed_in_shift?: string | null;
         };
@@ -1127,6 +1150,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    health_api_v1_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     get_allowance_api_v1_allowance_get: {
         parameters: {
             query?: never;

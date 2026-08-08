@@ -213,7 +213,7 @@ class BrainStore:
         self,
         *,
         title: str,
-        shift_id: str,
+        shift_id: str | None,
         detail: str = "",
         owner: str | None = None,
         priority: int = 3,

@@ -24,6 +24,7 @@ from typing import Any
 
 from werkhaus.brain.layout import CompanyPaths
 from werkhaus.brain.store import BrainStore
+from werkhaus.contract.credentials import CredentialClass, classify
 from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import (
     ArtifactNotFound,
@@ -69,6 +70,7 @@ from werkhaus.contract.models import (
 from werkhaus.contract.plan import Allowance, build_allowance, current_plan
 from werkhaus.engines.bus import CompanyBus
 from werkhaus.engines.roster import ROSTER, display_name
+from werkhaus.share.scanner import scan_text
 from werkhaus.share.snapshot import build_snapshot
 
 logger = logging.getLogger(__name__)
@@ -204,6 +206,7 @@ class BaseEngine(Engine):
     def __init__(self, root: str | Path = "./data") -> None:
         self.root = Path(root)
         self._companies: dict[CompanyId, CompanyRuntime] = {}
+        self._site_scan_cache: dict[tuple[str, int], bool] = {}
 
     # ---------------------------------------------------------------- hooks
     def _make_runtime(self, brain: BrainStore, bus: CompanyBus) -> CompanyRuntime:
@@ -577,6 +580,21 @@ class BaseEngine(Engine):
             added_at=datetime.fromisoformat(entry["added_at"]),
         )
 
+    def _secret_values(self, company: CompanyRuntime) -> list[str]:
+        """The stored values that must never appear in anything public.
+
+        A public credential is deliberately absent: the anon key is *meant* to
+        ship in the page, and listing it here would block every site that talks
+        to its own database from ever being published.
+        """
+        vault = self._vault_read(company)
+        return [
+            entry["value"]
+            for name, entry in vault.items()
+            if classify(name) is not CredentialClass.PUBLIC
+            and len(entry.get("value", "")) >= 8
+        ]
+
     async def list_vault(self, cid: CompanyId) -> list[VaultItem]:
         vault = self._vault_read(self._get(cid))
         return [self._vault_item(n, e) for n, e in sorted(vault.items())]
@@ -655,7 +673,70 @@ class BaseEngine(Engine):
         if not target.is_file():
             raise NotFound("There's no page at that address.")
         mime = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-        return target.read_bytes(), mime
+        data = target.read_bytes()
+        if target.suffix.lower() in self.SITE_SCAN_SUFFIXES and self._site_leaks(
+            company, target, data
+        ):
+            return _PREVIEW_BLOCKED.encode("utf-8"), "text/html"
+        return data, mime
+
+    SITE_SCAN_SUFFIXES = frozenset({".html", ".htm", ".js", ".mjs", ".css", ".json"})
+
+    def _site_leaks(
+        self, company: CompanyRuntime, target: Path, data: bytes
+    ) -> bool:
+        """Is this preview file carrying a key it shouldn't?
+
+        The publish gate runs at publish time, but this preview *is* a real web
+        page served over the real API — a key baked into it is live the moment
+        it is written, long before anyone presses share. Cached on mtime so a
+        page being reloaded doesn't re-scan on every request.
+        """
+        try:
+            stamp = target.stat().st_mtime_ns
+        except OSError:
+            return False
+        key = (str(target), stamp)
+        cached = self._site_scan_cache.get(key)
+        if cached is None:
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                return False
+            findings = scan_text(
+                text,
+                path=target.name,
+                extra=self._secret_values(company),
+            )
+            leaking = [f for f in findings if f.kind != "absolute home path"]
+            cached = bool(leaking)
+            if cached:
+                logger.warning(
+                    "site preview withheld for %s: %s",
+                    company.id,
+                    ", ".join(sorted({f.kind for f in leaking})),
+                )
+                self._flag_leaking_page(company, target)
+            self._site_scan_cache = {key: cached}  # one page's worth is enough
+        return cached
+
+    def _flag_leaking_page(self, company: CompanyRuntime, target: Path) -> None:
+        """Turn the security stop into work, once. A blocked page the team is
+        never told about is a page nobody fixes."""
+        title = f"Move the private key out of {target.name} into a server function"
+        if any(
+            t.title == title and t.status is not TaskStatus.DONE
+            for t in company.brain.state.tasks.values()
+        ):
+            return
+        company.brain.add_task(
+            title=title, shift_id=None, priority=1, actor="chief"
+        )
+        company.bus.emit(
+            K.TASK_ADDED,
+            "One of the website's files has a private key in it, so we're not "
+            "showing it. The team will move it somewhere safe.",
+        )
 
     # ------------------------------------------------------------------ sharing
     async def publish(self, cid: CompanyId, opts: ShareOptions) -> ShareLink:
@@ -679,6 +760,7 @@ class BaseEngine(Engine):
             objections=list(state.objections.values()),
             include_shifts=opts.include_shifts,
             include_artifacts=opts.include_artifacts,
+            secret_values=self._secret_values(company),
         )
 
         link = ShareLink(
@@ -807,3 +889,23 @@ def name_from_idea(idea: str) -> str:
         if len(picked) == 3:
             break
     return " ".join(w.capitalize() for w in picked) or "New Company"
+
+
+_PREVIEW_BLOCKED = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>This page isn't being shown</title>
+<style>
+ body{font:16px/1.55 system-ui,sans-serif;margin:0;padding:3rem 1.5rem;
+      color:#1a1a1a;background:#fbfaf7}
+ main{max-width:34rem;margin:0 auto}
+ h1{font-size:1.25rem;margin:0 0 .75rem}
+ p{margin:0 0 .75rem;color:#444}
+</style></head>
+<body><main>
+<h1>We're not showing this page</h1>
+<p>One of its files has a private key written into it, and this preview is a
+real web page — anyone with the address could read it.</p>
+<p>Nothing is lost. The team has been given the job of moving that key into a
+server function, where it belongs, and the page will appear again once it has.</p>
+</main></body></html>
+"""

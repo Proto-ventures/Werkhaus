@@ -7,6 +7,8 @@ support message; a false negative publishes an API key to the internet.
 
 from __future__ import annotations
 
+import base64
+import json
 import math
 import re
 from collections import Counter
@@ -22,6 +24,11 @@ PATTERNS: dict[str, re.Pattern[str]] = {
     "Google API key": re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"),
     "Slack token": re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
     "Stripe key": re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}"),
+    "Stripe webhook signing secret": re.compile(r"\bwhsec_[A-Za-z0-9]{16,}"),
+    "Supabase secret key": re.compile(r"\bsb_secret_[A-Za-z0-9_-]{16,}"),
+    "Supabase access token": re.compile(r"\bsbp_[A-Za-z0-9]{16,}"),
+    "Netlify access token": re.compile(r"\bnfp_[A-Za-z0-9]{16,}"),
+    "Resend API key": re.compile(r"\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{16,}"),
     "private key block": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     "JSON Web Token": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\."),
     "connection string with password": re.compile(
@@ -44,6 +51,69 @@ _CANDIDATE = re.compile(r"[A-Za-z0-9+/_-]{" + str(ENTROPY_MIN_LENGTH) + r",}")
 _ENTROPY_ALLOW = re.compile(
     r"^(?:[a-z]+(?:[-_][a-z]+){2,}|(?:https?://)?[\w.-]+\.[a-z]{2,}(?:/\S*)?)$", re.I
 )
+
+
+# Credentials that are *meant* to ship in a browser bundle. Without this, a
+# site that talks to its own database can never be published: Supabase's anon
+# key is a JWT, and the JWT pattern above would block every page carrying one.
+PUBLIC_PATTERNS: dict[str, re.Pattern[str]] = {
+    "Stripe publishable key": re.compile(r"\bpk_(?:live|test)_[A-Za-z0-9]{16,}"),
+    "Supabase publishable key": re.compile(r"\bsb_publishable_[A-Za-z0-9_-]{16,}"),
+}
+
+# The whole token, signature included: blanking only the header and payload
+# leaves a high-entropy signature behind, which the entropy backstop then
+# reports — and a legitimate page stays unpublishable for the wrong reason.
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.([A-Za-z0-9_-]{10,})\.[A-Za-z0-9_-]*")
+
+
+def jwt_role(token: str) -> str | None:
+    """The ``role`` claim of a JWT, read without verifying the signature.
+
+    Supabase's anon key and its service_role key are both JWTs of the same
+    shape and opposite meaning: one is designed to sit in a public page, the
+    other is a database superuser that bypasses row-level security. Telling
+    them apart by pattern is impossible; the claim is right there, so read it.
+    """
+    match = _JWT.search(token)
+    if not match:
+        return None
+    payload = match.group(1)
+    try:
+        decoded = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        role = json.loads(decoded).get("role")
+    except Exception:
+        return None
+    return role if isinstance(role, str) else None
+
+
+def _blank_public(line: str) -> str:
+    """Replace declared-public credentials with spaces, preserving offsets."""
+    def blank(match: re.Match[str]) -> str:
+        return " " * len(match.group())
+
+    for pattern in PUBLIC_PATTERNS.values():
+        line = pattern.sub(blank, line)
+    if jwt_role(line) == "anon":
+        line = _JWT.sub(blank, line)
+    return line
+
+
+def _service_role_findings(line: str, path: str, number: int) -> list[Finding]:
+    """The loudest finding this scanner has. A service_role key in a public
+    file is not a leaked credential — it is a public database."""
+    if jwt_role(line) != "service_role":
+        return []
+    match = _JWT.search(line)
+    assert match is not None
+    return [
+        Finding(
+            "Supabase service key (this one can read and write everything)",
+            path,
+            number,
+            _mask(match.group()),
+        )
+    ]
 
 
 def shannon(text: str) -> float:
@@ -71,7 +141,14 @@ def scan_text(
     """Scan one document. ``extra`` holds literal values that must never appear
     (the company's own secret registry), which no pattern could infer."""
     findings: list[Finding] = []
-    for number, line in enumerate(text.splitlines(), 1):
+    for number, raw_line in enumerate(text.splitlines(), 1):
+        # A page that talks to a database has to carry a key, and that key is
+        # published on purpose. Blank the credentials that are designed to be
+        # public before anything looks at the line — including the entropy
+        # backstop, which they would trip by construction.
+        line = _blank_public(raw_line)
+        for role_finding in _service_role_findings(raw_line, path, number):
+            findings.append(role_finding)
         for kind, pattern in PATTERNS.items():
             match = pattern.search(line)
             if match:
