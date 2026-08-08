@@ -66,6 +66,10 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
     ctx: ShiftContext | None = None
     conversation: LocalConversation | None = None
     budget_hit = False
+    # The watchdog reads the meter every few seconds anyway; the closing phase
+    # reuses that reading instead of racing the close running on another thread.
+    run_cost = Decimal("0")
+    last_shown = ""
 
     try:
         bus.emit(K.SHIFT_STARTED, f"Shift {number} has started.", shift_id=sid)
@@ -117,14 +121,20 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             try:
                 while True:
                     done, _ = await asyncio.wait({run}, timeout=WATCHDOG_SECONDS)
-                    spent_now = company.spent + _run_cost(conversation)
-                    bus.emit(
-                        K.BUDGET_SPENT, "", shift_id=sid, role_id=ROLE_ID,
-                        payload={
-                            "spent": str(cents(spent_now)),
-                            "cap": str(company.cap),
-                        },
-                    )
+                    # The estimate, not the raw accumulated cost: open-weight
+                    # models are routinely missing from the price map, and a
+                    # watchdog reading a permanent 0.0 guards nothing.
+                    run_cost = _run_cost_estimate(conversation)
+                    spent_now = company.spent + run_cost
+                    shown = str(cents(spent_now))
+                    # One event per actual change. A 30-minute shift used to
+                    # emit ~200 identical "spent 0.00" events.
+                    if shown != last_shown:
+                        last_shown = shown
+                        bus.emit(
+                            K.BUDGET_SPENT, "", shift_id=sid, role_id=ROLE_ID,
+                            payload={"spent": shown, "cap": str(company.cap)},
+                        )
                     if done:
                         await run  # surface ConversationRunError, if any
                         break
@@ -150,7 +160,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
         status = _classify(conversation, ctx, budget_hit)
         _phase(company, sid, ShiftPhase.CLOSING, "Writing up the shift.")
 
-        cost = cents(_run_cost_estimate(conversation))
+        cost = cents(run_cost)
         if cost > 0:
             brain.record_cost(
                 cost, role_id=ROLE_ID, shift_id=sid,
@@ -240,7 +250,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             brain.close_shift(
                 sid, status=ShiftStatus.ABORTED,
                 failure_reason="You stopped this shift.",
-                cost=cents(_run_cost_estimate(conversation)),
+                cost=cents(max(run_cost, _run_cost_estimate(conversation))),
             )
         company.clear_activity()
         raise
@@ -250,7 +260,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             brain.close_shift(
                 sid, status=ShiftStatus.FAILED,
                 failure_reason=_exception_reason(exc),
-                cost=cents(_run_cost_estimate(conversation)),
+                cost=cents(max(run_cost, _run_cost_estimate(conversation))),
             )
         company.clear_activity()
         bus.emit(
@@ -282,19 +292,11 @@ def _kickoff(agenda: list[str]) -> str:
     )
 
 
-def _run_cost(conversation: LocalConversation | None) -> Decimal:
-    if conversation is None:
-        return Decimal("0")
-    try:
-        metrics = conversation.conversation_stats.get_combined_metrics()
-        return Decimal(str(metrics.accumulated_cost))
-    except Exception:
-        return Decimal("0")
-
-
 def _run_cost_estimate(conversation: LocalConversation | None) -> Decimal:
     """The real accumulated cost, or a token-based estimate when the model is
-    missing from the price map. Never silently zero after real work."""
+    missing from the price map. Zero only when the configured rates are zero —
+    a free tier — never merely because litellm has no price for the model.
+    """
     if conversation is None:
         return Decimal("0")
     try:
@@ -306,6 +308,9 @@ def _run_cost_estimate(conversation: LocalConversation | None) -> Decimal:
             int(getattr(usage, "completion_tokens", 0) or 0),
         )
     except Exception:
+        # Never fail a shift over the meter — but a zero that came from a
+        # broken read must not look like a zero that came from a free tier.
+        logger.warning("could not read the cost meter", exc_info=True)
         return Decimal("0")
 
 

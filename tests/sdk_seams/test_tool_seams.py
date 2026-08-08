@@ -94,3 +94,42 @@ def test_condenser_and_soul_kwarg_construct() -> None:
         system_prompt_kwargs={"soul_content": "You are a test."},
     )
     assert agent.system_prompt_kwargs["soul_content"] == "You are a test."
+
+
+def test_the_meter_reads_tokens_when_the_price_map_has_no_price(monkeypatch) -> None:
+    """Open-weight models are routinely absent from litellm's price table, so
+    ``accumulated_cost`` stays 0.0 however long they run. The budget watchdog
+    reads this function, so a permanent zero here would mean a company cap that
+    never trips. Zero is allowed only when the configured rates are zero.
+    """
+    from decimal import Decimal
+
+    from openhands.sdk.llm.utils.metrics import Metrics, TokenUsage
+
+    from werkhaus.engines.openhands import shift as shift_mod
+
+    metrics = Metrics(model_name="some/open-weight-model")
+    metrics.accumulated_token_usage = TokenUsage(
+        model="some/open-weight-model",
+        prompt_tokens=874_420,
+        completion_tokens=22_926,
+    )
+
+    class _Stats:
+        def get_combined_metrics(self):
+            return metrics
+
+    class _Conversation:
+        conversation_stats = _Stats()
+
+    monkeypatch.setenv("WERKHAUS_INPUT_COST_PER_MTOK", "0.20")
+    monkeypatch.setenv("WERKHAUS_OUTPUT_COST_PER_MTOK", "0.60")
+    priced = shift_mod._run_cost_estimate(_Conversation())
+    expected = (874_420 * 0.20 + 22_926 * 0.60) / 1_000_000
+    assert abs(float(priced) - expected) < 1e-9
+    assert priced > Decimal("0.15")
+
+    # A free tier is the one honest way to bill nothing.
+    monkeypatch.setenv("WERKHAUS_INPUT_COST_PER_MTOK", "0")
+    monkeypatch.setenv("WERKHAUS_OUTPUT_COST_PER_MTOK", "0")
+    assert shift_mod._run_cost_estimate(_Conversation()) == Decimal("0")

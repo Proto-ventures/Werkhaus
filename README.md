@@ -168,6 +168,12 @@ A shift is 30–80 model calls. Measured/verified against provider docs, Aug 202
 | OpenRouter `:free` (`openrouter/`) | `OPENROUTER_API_KEY` | 50 req/day; 1,000/day after a one-time $10 | 0–1, then ~10 |
 | NVIDIA NIM (`nvidia_nim/`) | `NVIDIA_NIM_API_KEY` | per-minute throttle; hot models saturated | varies |
 
+On a free tier set `WERKHAUS_INPUT_COST_PER_MTOK=0 WERKHAUS_OUTPUT_COST_PER_MTOK=0`:
+the ledger then reads $0.00 because the shift really was free, not because
+litellm had no price for the model. Leave the rates at their defaults and the
+meter estimates from token counts, so the budget watchdog still guards a model
+the price map has never heard of.
+
 Free tiers throttle by the minute; `WERKHAUS_LLM_RETRIES` /
 `WERKHAUS_LLM_RETRY_MIN_WAIT` / `WERKHAUS_LLM_RETRY_MAX_WAIT` make the engine
 wait out a window instead of failing the shift. Free usually also means the
