@@ -82,7 +82,7 @@ Engine selection is one environment variable:
 ```bash
 WERKHAUS_ENGINE=null       # empty everywhere, heartbeats only
 WERKHAUS_ENGINE=stub       # scripted scenarios, no LLM calls (use this)
-WERKHAUS_ENGINE=openhands  # M3+: real agents, real money
+WERKHAUS_ENGINE=openhands  # real employees, real money (M3: Maya only)
 ```
 
 ### Demoing the stub
@@ -117,6 +117,43 @@ curl -X PUT localhost:8000/api/v1/_dev/speed \
   -H 'Content-Type: application/json' -d '{"speed":300}'
 ```
 
+### Running the real engine (M3: one employee)
+
+Maya, the market researcher, works for real: she browses the live web with a
+headless browser, writes `market-research.md`, and files it through the company
+brain. Her "sourced" labels are checked against the pages she actually loaded —
+a cited URL she never visited is downgraded to "inferred", out loud.
+
+```bash
+export WERKHAUS_ENGINE=openhands
+export WERKHAUS_DATA=./data-real
+# Any litellm model string works. House preference: open-weight models first.
+export WERKHAUS_MODEL="openrouter/qwen/qwen3-235b-a22b-2507"
+export OPENROUTER_API_KEY=sk-or-...
+# Or NVIDIA NIM: WERKHAUS_MODEL="nvidia_nim/moonshotai/kimi-k2-instruct"
+#                NVIDIA_NIM_API_KEY=...
+# Open-weight models are often missing from the cost tables, so tell the
+# meters your provider's prices (dollars per million tokens):
+export WERKHAUS_INPUT_COST_PER_MTOK=0.20
+export WERKHAUS_OUTPUT_COST_PER_MTOK=0.60
+
+uv run uvicorn werkhaus.api.app:app --port 8000   # run from a dir with no .env
+```
+
+Then create a company in the studio and start a shift, ideally with a focus
+("Who sells ceramics subscription boxes in Germany and what do they charge?").
+Knobs: `WERKHAUS_MODEL_KEY` / `WERKHAUS_MODEL_BASE_URL` override the provider
+defaults; `WERKHAUS_BUDGET_CAP` (default 20.00) and `WERKHAUS_SHIFT_CAP`
+(default 2.00) set new-company budgets; `WERKHAUS_NO_BROWSER=1` removes the
+browser (research is then honest about being inferred). Maya's per-run cap is
+$1.50 on top of a 5-second cost watchdog; one real shift runs at a time —
+the browser is shared.
+
+What to verify after a real shift: `data-real/co_*/workspace/market-research.md`
+has real URLs; the artifact is `sourced` only for visited pages; the ledger has
+a nonzero cost; `GET /api/v1/companies/{id}/events` reads like an employee, not
+a model; halt mid-shift returns in under two seconds and nothing is lost.
+
 ### Checks
 
 ```bash
@@ -140,7 +177,8 @@ CI should assert regeneration is a no-op.
 
 - `OPENHANDS_SUPPRESS_BANNER=1` is set in `werkhaus/api/app.py` — the SDK prints an
   ASCII ad to stderr on import.
-- `~/.openhands/SOUL.md`, if it exists, silently replaces the identity paragraph of
-  every agent system prompt. The engine asserts it is absent at startup.
+- `~/.openhands/SOUL.md`, if it exists, would silently replace the identity
+  paragraph of every agent system prompt. The engine neutralises it by always
+  passing its own identity (`soul_content`) explicitly.
 - The SDK is MIT. Werkhaus is proprietary, which is fine; the obligation is
   retaining the notice in anything we distribute (`THIRD_PARTY_LICENSES.txt`, M6).
