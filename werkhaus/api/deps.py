@@ -25,9 +25,22 @@ def get_engine_ws(websocket: WebSocket) -> Engine:
 EngineDep = Annotated[Engine, Depends(get_engine)]
 
 
+DEFAULT_ENGINE = "stub"
+"""A server started with no configuration should demonstrate the product, not
+present a front door whose only button returns an error. ``null`` stays
+available for testing the API surface."""
+
+
+def engine_kind() -> str:
+    """The one reading of the environment. Both the engine and the dev routes
+    ask this, because when they each read the variable themselves they drift,
+    and a demo server quietly loses its demo controls."""
+    return os.getenv("WERKHAUS_ENGINE", DEFAULT_ENGINE).lower()
+
+
 def build_engine() -> Engine:
     """Choose the engine from the environment. One knob, one place."""
-    kind = os.getenv("WERKHAUS_ENGINE", "null").lower()
+    kind = engine_kind()
     if kind == "null":
         from werkhaus.engines.null import NullEngine
 

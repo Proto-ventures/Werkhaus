@@ -14,7 +14,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from werkhaus.contract.engine import Engine
-from werkhaus.contract.errors import CompanyNotFound, ShiftNotFound
+from werkhaus.contract.errors import (
+    CompanyNotFound,
+    EngineNotConfigured,
+    ShiftNotFound,
+)
 from werkhaus.contract.events import ShiftEvent, ShiftEventKind
 from werkhaus.contract.models import (
     Artifact,
@@ -38,6 +42,7 @@ from werkhaus.contract.models import (
     VaultItem,
     WorkspaceFile,
 )
+from werkhaus.contract.plan import Allowance, build_allowance, current_plan
 
 HEARTBEAT_SECONDS = 20
 
@@ -56,10 +61,16 @@ class NullEngine(Engine):
 
     # ---------------------------------------------------------------- companies
     async def create_company(self, idea: str, name: str | None = None) -> Company:
-        raise NotImplementedError("NullEngine cannot create companies")
+        # A bare exception here surfaces as "Something went wrong on our side."
+        # on the one button the front door has, which is how a misconfigured
+        # server looks identical to a broken product.
+        raise EngineNotConfigured()
 
     async def get_company(self, cid: CompanyId) -> Company:
         raise CompanyNotFound()
+
+    async def get_allowance(self) -> Allowance:
+        return build_allowance(current_plan(), None, used=0)
 
     async def list_companies(self) -> list[Company]:
         return []

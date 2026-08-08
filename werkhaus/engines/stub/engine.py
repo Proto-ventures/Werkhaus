@@ -42,7 +42,7 @@ from werkhaus.contract.models import (
     ShiftStatus,
 )
 from werkhaus.engines.bus import CompanyBus
-from werkhaus.engines.common import BaseEngine, cents
+from werkhaus.engines.common import BaseEngine, cents, name_from_idea
 from werkhaus.engines.roster import display_name
 from werkhaus.engines.stub.scenario import (
     ScenarioRoleWork,
@@ -94,17 +94,35 @@ class StubEngine(BaseEngine):
                 break
         scenario = load_scenario(scenario_name)
 
+        # A scenario choreographs a *shift* — which roles work, what fails,
+        # how long it takes. It must not supply the company's identity. When it
+        # did, every founder who typed their own idea got a company called
+        # Northwind Ceramics whose audience was somebody else's customers, and
+        # no answer to any interview question could dislodge it.
+        described = bool(idea)
         charter = Charter(
             idea=idea or scenario.charter.idea,
-            one_liner=scenario.charter.one_liner,
-            audience=scenario.charter.audience,
-            success_looks_like=scenario.charter.success_looks_like,
-            constraints=list(scenario.charter.constraints),
-            tone=scenario.charter.tone,
+            one_liner=(
+                (idea if len(idea) <= 140 else idea[:139] + "…")
+                if described
+                else scenario.charter.one_liner
+            ),
+            audience=(
+                "Not settled yet. The first research shift narrows this."
+                if described
+                else scenario.charter.audience
+            ),
+            success_looks_like=(
+                "A market-research report a stranger could act on."
+                if described
+                else scenario.charter.success_looks_like
+            ),
+            constraints=[] if described else list(scenario.charter.constraints),
+            tone=None if described else scenario.charter.tone,
         )
         company = self._new_company(
             charter=charter,
-            name=name or scenario.company_name,
+            name=name or (name_from_idea(idea) if described else scenario.company_name),
             budget_cap=Decimal(str(scenario.budget_cap)),
             per_shift_cap=Decimal(str(scenario.per_shift_cap)),
             extra_metrics={"scenario": scenario.name},
@@ -569,6 +587,21 @@ class StubEngine(BaseEngine):
             encoding="utf-8",
         )
 
+    SAMPLE_NOTE = (
+        "> **Sample text.** This company is running on scripted shifts, so the "
+        "words below are a fixed example rather than work about *{name}*. "
+        "Switch the engine to run real employees.\n\n"
+    )
+
+    def _sample_text(self, company: StubCompany, body: str) -> str:
+        """Say what this is, at the top of every document.
+
+        A scripted document that reads as though the team researched *your*
+        business is the most convincing possible way to look broken: the
+        founder concludes the product ignored everything they typed.
+        """
+        return self.SAMPLE_NOTE.format(name=company.brain.state.name) + body
+
     def _write_artifact(
         self, company: StubCompany, sid: ShiftId, rid: str, spec: Any
     ) -> None:
@@ -581,16 +614,17 @@ class StubEngine(BaseEngine):
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         preview_url = spec.preview_url
+        body = self._sample_text(company, spec.body)
         if spec.kind is ArtifactKind.SITE:
             target.mkdir(parents=True, exist_ok=True)
-            (target / "index.md").write_text(spec.body, encoding="utf-8")
+            (target / "index.md").write_text(body, encoding="utf-8")
             # The site is the one artifact that either works or doesn't, so the
             # stub builds a real one: actual files in workspace/site/, served at
             # a real URL the Website tab can load.
             self._seed_site(company)
             preview_url = f"/api/v1/companies/{company.id}/site/"
         else:
-            target.write_text(spec.body, encoding="utf-8")
+            target.write_text(body, encoding="utf-8")
 
         existing = next(
             (a for a in company.brain.state.artifacts.values() if a.path == spec.path),

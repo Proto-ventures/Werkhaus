@@ -74,6 +74,21 @@ class VaultValueBody(_Body):
     value: str = Field(min_length=1, max_length=8000)
 
 
+# --------------------------------------------------------------------------- health
+@router.get("/health")
+async def health(engine: EngineDep) -> dict[str, object]:
+    """What this server is, in enough detail to explain "nothing is working".
+
+    Deliberately no filesystem path: the data directory is an absolute home
+    path, which is a finding everywhere else in this codebase.
+    """
+    return {
+        "engine": type(engine).__name__.replace("Engine", "").lower(),
+        "companies": len(await engine.list_companies()),
+        "plan": (await engine.get_allowance()).plan,
+    }
+
+
 # ----------------------------------------------------------------------------- plan
 @router.get("/allowance", response_model=Allowance)
 async def get_allowance(engine: EngineDep) -> Allowance:

@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from werkhaus.api import rest, ws
-from werkhaus.api.deps import build_engine
+from werkhaus.api.deps import build_engine, engine_kind
 from werkhaus.contract.errors import WerkhausError
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ def create_app() -> FastAPI:
     app.include_router(rest.router)
     app.include_router(rest.public_router)
     app.include_router(ws.router)
-    if os.getenv("WERKHAUS_ENGINE", "null").lower() == "stub":
+    if engine_kind() == "stub":
         from werkhaus.api import dev
 
         app.include_router(dev.router)

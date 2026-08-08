@@ -89,33 +89,52 @@ export const AUTONOMY_OPTIONS: QuestionOption[] = [
   },
 ]
 
-const QUESTIONS: Question[] = [
-  {
-    key: 'autonomy',
-    ask: 'First: how much should the team do on its own? You can change this later in settings.',
-    placeholder: '',
-    optional: false,
-    options: AUTONOMY_OPTIONS,
-  },
-  {
-    key: 'audience',
-    ask: 'Who is this for? The more specific you are, the better the research gets.',
-    placeholder: 'People in small UK flats who buy few objects but care what they are',
-    optional: false,
-  },
-  {
-    key: 'success_looks_like',
-    ask: 'What would make this a success in your eyes? Pick something you could actually check.',
-    placeholder: 'A live page with at least 3 real signups and a price I can defend',
-    optional: false,
-  },
-  {
-    key: 'constraints',
-    ask: 'Last one — anything the team must not do? You can skip this.',
-    placeholder: 'UK only for the first year. No paid advertising.',
-    optional: true,
-  },
-]
+/** Enough of the founder's own words to prove we read them, without a wall. */
+function shorten(idea: string, max = 52): string {
+  const clean = idea.trim().replace(/\s+/g, ' ')
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max)
+  const space = cut.lastIndexOf(' ')
+  return `${space > 20 ? cut.slice(0, space) : cut}…`
+}
+
+/**
+ * The interview, asked about *this* company.
+ *
+ * The examples are deliberately generic: an example answer written for one kind
+ * of business teaches every founder to describe that business instead of their
+ * own, and the whole product then feels stuck on somebody else's idea.
+ */
+function questionsFor(idea: string): Question[] {
+  const it = shorten(idea)
+  return [
+    {
+      key: 'autonomy',
+      ask: 'First: how much should the team do on its own? You can change this later in settings.',
+      placeholder: '',
+      optional: false,
+      options: AUTONOMY_OPTIONS,
+    },
+    {
+      key: 'audience',
+      ask: `Who is “${it}” for? The more specific you are, the better the research gets.`,
+      placeholder: 'The people most likely to buy this first, and what they do today instead',
+      optional: false,
+    },
+    {
+      key: 'success_looks_like',
+      ask: 'What would make this a success in your eyes? Pick something you could actually check.',
+      placeholder: 'Something you could point at and say yes or no to',
+      optional: false,
+    },
+    {
+      key: 'constraints',
+      ask: 'Last one — anything the team must not do? You can skip this.',
+      placeholder: 'Anywhere it must not go, anything it must not spend',
+      optional: true,
+    },
+  ]
+}
 
 const PLAN_ITEMS = [
   'Research the market and the competition, with sources for every claim',
@@ -153,6 +172,10 @@ export function Rail({
     step: 0,
     said: [],
   })
+  const QUESTIONS = useMemo(
+    () => questionsFor(company.charter.idea),
+    [company.charter.idea],
+  )
 
   // A company that has already worked doesn't get re-interviewed.
   const interviewing = company.shift_count === 0 && onb.step < QUESTIONS.length

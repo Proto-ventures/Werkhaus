@@ -21,7 +21,7 @@ from werkhaus.brain.store import BrainStore
 from werkhaus.contract.events import ShiftEventKind as K
 from werkhaus.contract.models import Charter, Company, CompanyId, Shift
 from werkhaus.engines.bus import CompanyBus
-from werkhaus.engines.common import BaseEngine, CompanyRuntime
+from werkhaus.engines.common import BaseEngine, CompanyRuntime, name_from_idea
 from werkhaus.engines.openhands.runtime import OpenHandsCompany
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ class OpenHandsEngine(BaseEngine):
         )
         company = self._new_company(
             charter=charter,
-            name=name or _name_from_idea(idea),
+            name=name or name_from_idea(idea),
             budget_cap=Decimal(os.getenv("WERKHAUS_BUDGET_CAP", "20.00")),
             per_shift_cap=Decimal(os.getenv("WERKHAUS_SHIFT_CAP", "2.00")),
         )
@@ -171,11 +171,3 @@ class OpenHandsEngine(BaseEngine):
                 shift_id=shift.id,
             )
         await super()._cancel(company)
-
-
-def _name_from_idea(idea: str) -> str:
-    """A provisional company name: the first few meaningful words, title-cased.
-    The founder can rename later; a real naming pass is a shift's job."""
-    words = [w.strip(".,!?\"'") for w in idea.split()]
-    picked = [w for w in words if len(w) > 2][:3]
-    return " ".join(w.capitalize() for w in picked) or "New Company"

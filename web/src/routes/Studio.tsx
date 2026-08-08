@@ -168,6 +168,7 @@ export function Studio() {
         <div className="flex h-12 items-center gap-3 px-3 sm:gap-4 sm:px-4">
           <Link
             to="/companies"
+            title="All your companies"
             className="focus-visible:ring-ring shrink-0 focus-visible:ring-2 focus-visible:outline-none"
           >
             <Wordmark className="[&>span:last-child]:hidden xl:[&>span:last-child]:inline" />
@@ -270,6 +271,14 @@ export function Studio() {
           >
             share
           </button>
+          {/* One company with no visible way to start a second reads as the
+              only company the product can build. */}
+          <Link
+            to="/"
+            className="btn hidden shrink-0 py-1 text-[0.8125rem] sm:inline-block"
+          >
+            new company
+          </Link>
         </div>
 
         {/* Mobile: choose which half of the studio fills the screen. */}

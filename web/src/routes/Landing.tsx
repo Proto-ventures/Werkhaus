@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { LiveShift } from '@/components/demo'
-import { useTypedPlaceholder } from '@/components/motion'
 import { ReportReplay } from '@/components/report'
 import dandelions from '@/assets/dandelions.webp'
 import wheat from '@/assets/wheat.webp'
@@ -48,18 +47,39 @@ function Caption({ text, className }: { text: string; className?: string }) {
 function Hero() {
   const navigate = useNavigate()
   const [idea, setIdea] = useState('')
-  const [focused, setFocused] = useState(false)
   const [busy, setBusy] = useState(false)
-  const placeholder = useTypedPlaceholder(IDEAS, focused || idea.length > 0)
+  // A placeholder that types itself is indistinguishable from a box that came
+  // pre-filled, which makes one example business look like the only business
+  // Werkhaus can build. It says "for example", it doesn't move, and you change
+  // it by asking.
+  const [example, setExample] = useState(0)
+  const placeholder = `For example: ${IDEAS[example % IDEAS.length]}`
+
+  // A toast that fades is the wrong shape for "the only button on the page
+  // didn't work": the reason has to stay on screen next to the button.
+  const [failed, setFailed] = useState<{ message: string; hint?: string } | null>(
+    null,
+  )
 
   async function begin() {
     if (!idea.trim()) return
     setBusy(true)
+    setFailed(null)
     try {
       const company = await api.createCompany(idea.trim())
       navigate(`/c/${company.id}`)
     } catch (e) {
-      toast.error((e as Error).message)
+      const detail = (e as { detail?: { hint?: string | null } }).detail
+      // A dead server rejects with a TypeError from fetch, whose message is
+      // "Failed to fetch" — true, and useless to the person reading it.
+      const failure = detail
+        ? { message: (e as Error).message, hint: detail.hint ?? undefined }
+        : {
+            message: "We couldn't reach Werkhaus.",
+            hint: 'The server may not be running. Nothing you typed was lost.',
+          }
+      setFailed(failure)
+      toast.error(failure.message)
       setBusy(false)
     }
   }
@@ -170,8 +190,6 @@ function Hero() {
             <textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
               rows={3}
               placeholder={placeholder}
               className="placeholder:text-ink-faint block w-full resize-none px-4 py-4 text-[0.9375rem] leading-relaxed outline-none"
@@ -180,9 +198,19 @@ function Hero() {
               }}
             />
             <div className="border-rule-soft flex items-center justify-between gap-3 border-t px-4 py-2.5">
-              <span className="text-ink-faint font-mono text-[0.6875rem]">
-                {idea.trim() ? 'ctrl + enter' : 'free while we are testing'}
-              </span>
+              {idea.trim() ? (
+                <span className="text-ink-faint font-mono text-[0.6875rem]">
+                  ctrl + enter
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setExample((n) => n + 1)}
+                  className="text-link font-mono text-[0.6875rem] underline"
+                >
+                  show another example
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-primary"
@@ -192,6 +220,18 @@ function Hero() {
                 {busy ? 'setting up' : 'start the company'}
               </button>
             </div>
+            {failed && (
+              <div className="border-rule-soft border-t px-4 py-3">
+                <p className="text-red text-[0.875rem] leading-snug">
+                  {failed.message}
+                </p>
+                {failed.hint && (
+                  <p className="text-ink-soft mt-1 text-[0.8125rem] leading-snug">
+                    {failed.hint}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
@@ -202,8 +242,10 @@ function Hero() {
         </div>
 
         <div className="pb-12 lg:py-8 lg:pl-8">
+          {/* Labelled, because an unlabelled demo of one example business is
+              how a product comes to look like it only builds that business. */}
           <p className="eyebrow text-ink-faint bg-paper/85 mb-2 inline-block px-1.5 py-0.5">
-            a shift, running
+            a recording of one shift · not your company
           </p>
           <LiveShift />
         </div>
@@ -267,6 +309,9 @@ function Report() {
       </div>
 
       <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <p className="eyebrow text-ink-faint bg-paper/85 mb-2 inline-block px-1.5 py-0.5">
+          a finished example · yours will be about your idea
+        </p>
         <ReportReplay />
       </div>
     </section>

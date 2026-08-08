@@ -103,3 +103,19 @@ class OutOfShifts(Conflict):
     code = "out_of_shifts"
     message = "You've used the shifts on your plan."
     hint = "More shifts arrive with your next refill."
+
+
+class EngineNotConfigured(WerkhausError):
+    """The server is running, but not with an engine that can do any work.
+
+    Its own class because "the operator forgot an environment variable" and
+    "the product is broken" look identical from the front door otherwise.
+    """
+
+    code = "engine_not_configured"
+    status = 503
+    message = "This Werkhaus isn't set up to run companies yet."
+    hint = (
+        "The server was started without an engine. Set WERKHAUS_ENGINE=stub to "
+        "try it with scripted shifts, or openhands to run real employees."
+    )

@@ -774,3 +774,36 @@ class BaseEngine(Engine):
         brain.paths.shift_json(shift.number).write_text(
             shift.model_dump_json(indent=2), encoding="utf-8"
         )
+
+
+_FUNCTION_WORDS = frozenset(
+    "a an the and or but for of to in on at by with from that who which "
+    "your our my their this these those is are was were be been as into "
+    "over under about after before while when where how why".split()
+)
+
+
+def name_from_idea(idea: str) -> str:
+    """A provisional company name from the founder's own opening words.
+
+    Shared by every engine on purpose. A company named from anywhere other than
+    the founder's own words is a company that belongs to somebody else's idea.
+
+    Takes the words up to the first function word, which is usually where the
+    thing stops being named and starts being described: "a booking tool for
+    mobile dog groomers" is Booking Tool, not Booking Tool For. The founder can
+    rename it; a real naming pass is a shift's job.
+    """
+    picked: list[str] = []
+    for raw in idea.split():
+        word = raw.strip(".,!?:;\"'()[]")
+        if not word:
+            continue
+        if word.lower() in _FUNCTION_WORDS:
+            if picked:
+                break  # the description starts here
+            continue  # a leading "A"/"The" is not part of the name
+        picked.append(word)
+        if len(picked) == 3:
+            break
+    return " ".join(w.capitalize() for w in picked) or "New Company"

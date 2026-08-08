@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -38,7 +39,20 @@ def main(argv: list[str] | None = None) -> int:
     facts = sub.add_parser("facts", help="Summarise a company's brain.")
     facts.add_argument("company", type=Path)
 
+    reset = sub.add_parser(
+        "reset",
+        help="Delete every company in a data directory. For getting a clean "
+        "slate before testing — it destroys work, so it asks first.",
+    )
+    reset.add_argument("data", type=Path)
+    reset.add_argument(
+        "--yes", action="store_true", help="Skip the confirmation prompt."
+    )
+
     args = parser.parse_args(argv)
+
+    if args.command == "reset":
+        return _reset(args.data, assume_yes=args.yes)
 
     if args.command == "rebuild":
         store = _open(args.company)
@@ -92,6 +106,40 @@ def _open(path: Path) -> BrainStore:
         print(f"no company brain at {path}", file=sys.stderr)
         raise SystemExit(2)
     return BrainStore(path, path.name)
+
+
+def _reset(data: Path, *, assume_yes: bool = False) -> int:
+    """Empty a data directory of companies.
+
+    Deliberately not a `--force` flag on something else: deleting a founder's
+    companies is its own verb, and it names what it is about to destroy before
+    it does it.
+    """
+    if not data.exists():
+        print(f"{data} doesn't exist; nothing to reset")
+        return 0
+    companies = sorted(d for d in data.glob("co_*") if d.is_dir())
+    if not companies:
+        print(f"{data} has no companies")
+        return 0
+
+    for directory in companies:
+        name = directory.name
+        try:
+            store = BrainStore(directory, name)
+            name = f"{name}  {store.state.name}"
+        except Exception:
+            pass  # unreadable is still deletable
+        print(f"  {name}")
+    if not assume_yes:
+        answer = input(f"delete {len(companies)} companies from {data}? [y/N] ")
+        if answer.strip().lower() not in ("y", "yes"):
+            print("nothing deleted")
+            return 1
+    for directory in companies:
+        shutil.rmtree(directory)
+    print(f"deleted {len(companies)} companies")
+    return 0
 
 
 if __name__ == "__main__":
