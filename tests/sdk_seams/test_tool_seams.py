@@ -133,3 +133,51 @@ def test_the_meter_reads_tokens_when_the_price_map_has_no_price(monkeypatch) -> 
     monkeypatch.setenv("WERKHAUS_INPUT_COST_PER_MTOK", "0")
     monkeypatch.setenv("WERKHAUS_OUTPUT_COST_PER_MTOK", "0")
     assert shift_mod._run_cost_estimate(_Conversation()) == Decimal("0")
+
+
+def test_a_page_that_failed_to_load_is_not_a_source() -> None:
+    """Models invent plausible domains. When one dies on DNS the navigation is
+    still *attempted*, and counting attempts would let a made-up citation pass
+    the "sourced" check — which is the one thing that check exists to stop.
+    """
+    import threading
+
+    from openhands.sdk.event import ObservationEvent
+
+    from werkhaus.engines.openhands.brain_tool import BrainObservation, ShiftContext
+    from werkhaus.engines.openhands.narrator import Narrator
+
+    class _Bus:
+        def emit_threadsafe(self, *a, **k) -> None: ...
+
+    ctx = ShiftContext(
+        company_id="co_x",
+        shift_id="co_x/0001",
+        role_id="researcher",
+        shift_number=1,
+        brain=None,  # type: ignore[arg-type]
+        bus=_Bus(),  # type: ignore[arg-type]
+        stopped=threading.Event(),
+    )
+    narrator = Narrator(ctx)
+
+    def observation(is_error: bool) -> ObservationEvent:
+        return ObservationEvent(
+            source="environment",
+            tool_name="browser_navigate",
+            tool_call_id="call_1",
+            action_id="act_1",
+            observation=BrainObservation.from_text("...", is_error=is_error),
+        )
+
+    # A page that loaded counts.
+    ctx.pending_url = "https://real.example/pricing"
+    narrator._settle_navigation(observation(is_error=False))
+    assert "https://real.example/pricing" in ctx.browsed_urls
+    assert ctx.pending_url is None
+
+    # A page that did not, does not.
+    ctx.pending_url = "https://invented.example/pricing"
+    narrator._settle_navigation(observation(is_error=True))
+    assert "https://invented.example/pricing" not in ctx.browsed_urls
+    assert ctx.pending_url is None

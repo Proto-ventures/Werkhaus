@@ -97,6 +97,11 @@ class Narrator:
             ctx.error_code = event.code
             logger.warning("run limit: %s — %s", event.code, event.detail)
         elif isinstance(event, AgentErrorEvent):
+            # A tool that raised produces this instead of an observation, so a
+            # held navigation is settled here too — as a failure.
+            if ctx.pending_url is not None:
+                logger.info("navigation errored, not counting: %s", ctx.pending_url)
+                ctx.pending_url = None
             logger.warning("agent error (%s): %s", event.tool_name, event.error)
             self._activity(f"{ctx.name} hit a problem and is trying another way.")
         elif isinstance(event, MessageEvent) and event.source == "agent":
@@ -111,7 +116,22 @@ class Narrator:
                         role_id=ctx.role_id,
                     )
         elif isinstance(event, ObservationEvent):
-            return  # raw page text and tool output; never user-safe
+            # The content is raw page text and never user-safe, but whether the
+            # tool errored decides if a page counts as read.
+            self._settle_navigation(event)
+            return
+
+    def _settle_navigation(self, event: ObservationEvent) -> None:
+        """Promote a held URL only if the page actually loaded."""
+        ctx = self.ctx
+        if ctx.pending_url is None or event.tool_name != "browser_navigate":
+            return
+        failed = bool(getattr(event.observation, "is_error", False))
+        if failed:
+            logger.info("navigation failed, not counting as read: %s", ctx.pending_url)
+        else:
+            ctx.browsed_urls.add(ctx.pending_url)
+        ctx.pending_url = None
 
     # ---------------------------------------------------------------- actions
     def _action(self, event: ActionEvent) -> None:
@@ -121,7 +141,11 @@ class Narrator:
         if tool == "browser_navigate" and event.action is not None:
             url = getattr(event.action, "url", None)
             if url:
-                ctx.browsed_urls.add(normalize_url(url))
+                # Held, not counted. Models invent plausible domains, and a
+                # navigation that dies on DNS would otherwise be indistinguish-
+                # able from a page that loaded — which is exactly how a made-up
+                # citation would pass the "sourced" check.
+                ctx.pending_url = normalize_url(url)
                 self._last_domain = _domain(url)
             if self._last_domain:
                 self._activity(f"{ctx.name} is reading {self._last_domain}")

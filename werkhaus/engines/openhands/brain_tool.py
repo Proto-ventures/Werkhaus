@@ -36,6 +36,7 @@ from openhands.sdk.tool import (
     ToolExecutor,
     register_tool,
 )
+from pydantic import ConfigDict, model_validator
 
 from werkhaus.brain.digest import render_digest
 from werkhaus.brain.store import BrainStore
@@ -62,6 +63,12 @@ class ShiftContext:
     bus: CompanyBus
     stopped: threading.Event = field(default_factory=threading.Event)
     browsed_urls: set[str] = field(default_factory=set)
+    """Pages that actually loaded. A citation is only "sourced" if its URL is
+    in here, so a page that failed to load must never be added."""
+
+    pending_url: str | None = None
+    """A navigation that has been issued and not yet answered for. Promoted
+    into ``browsed_urls`` only when the observation says it worked."""
     claimed_task_ids: list[str] = field(default_factory=list)
     last_activity_emit: float = 0.0
     # The run-limit code the SDK reported, if any ("MaxBudgetReached", ...).
@@ -101,7 +108,27 @@ def normalize_url(url: str) -> str:
 
 # --------------------------------------------------------------------- schema
 class BrainAction(Action):
-    """One operation against the company brain."""
+    """One operation against the company brain.
+
+    Unknown fields are dropped rather than refused. The SDK's ``Action``
+    forbids extras, which is right for catching our own typos and wrong for a
+    schema an LLM fills in: a model that adds a plausible extra key — a task id
+    alongside the artifact it came from — gets its whole call rejected, and if
+    that call was ``record_artifact`` the shift loses the only thing it made.
+    Being liberal here costs nothing; the extras are logged so a field the
+    model keeps reaching for can be made real.
+    """
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _note_extras(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            unknown = sorted(set(data) - set(cls.model_fields))
+            if unknown:
+                logger.info("brain tool ignored unknown fields: %s", ", ".join(unknown))
+        return data
 
     op: Literal[
         "read_digest",

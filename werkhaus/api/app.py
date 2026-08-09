@@ -31,6 +31,13 @@ logger = logging.getLogger(__name__)
 # import openhands.*, which for the openhands engine happens during startup.
 os.environ.setdefault("OPENHANDS_SUPPRESS_BANNER", "1")
 
+# The browser stack logs a failed navigation at ERROR, through two loggers and
+# an event bus. A model guessing a domain that does not resolve is ordinary —
+# the shift recovers and tries something else — so it belongs at warning level
+# in our logs rather than looking like the process is on fire.
+for _noisy in ("browser_use", "bubus", "browser_use.browser"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 
 def _error_body(
     code: str, message: str, hint: str | None, request_id: str

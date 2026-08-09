@@ -30,3 +30,6 @@ web/dist/
 .DS_Store
 .idea/
 *.swp
+
+# Local model configuration (keys — never committed)
+werkhaus.env
