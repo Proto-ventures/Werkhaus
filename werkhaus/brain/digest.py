@@ -12,6 +12,7 @@ stable is what makes prompt caching work.
 
 from __future__ import annotations
 
+from werkhaus.brain.memory import recall
 from werkhaus.brain.store import BrainStore
 from werkhaus.contract.models import TaskStatus
 
@@ -24,14 +25,22 @@ def _fits(blocks: list[str], budget_tokens: int) -> bool:
     return sum(len(b) for b in blocks) / CHARS_PER_TOKEN <= budget_tokens
 
 
-def render_digest(
+def render_digest(  # noqa: PLR0913
     store: BrainStore,
     *,
     role_id: str,
     role_name: str | None = None,
     shift_number: int | None = None,
     budget_tokens: int = 1200,
+    focus: str = "",
 ) -> str:
+    """What an employee reads before starting.
+
+    When ``focus`` is given and the company has history, what to remember is
+    chosen by association rather than recency — see :mod:`werkhaus.brain.memory`.
+    The last eight of everything is a fine default and a bad one for a company
+    a month old, where the document that matters was filed three weeks ago.
+    """
     state = store.state
     who = role_name or role_id
     blocks: list[str] = []
@@ -69,34 +78,40 @@ def render_digest(
         lines.extend(f"- [P{t.priority}] #{t.id} {t.title}" for t in mine[:8])
         blocks.append("\n".join(lines))
 
-    # 4. Decisions already made — so nobody relitigates them.
-    if state.decisions:
-        lines = ["\n## Decisions in force\n"]
-        for decision in list(state.decisions.values())[-8:]:
-            line = f"- {decision.title}"
-            if decision.contest_note:
-                line += f" (contested: {decision.contest_note})"
-            lines.append(line)
-        blocks.append("\n".join(lines))
-
-    # 5. Open objections. The reason not to repeat last shift's mistake.
-    if state.objections:
-        serious = [
-            o for o in state.objections.values() if o.severity in ("fatal", "serious")
+    # 4-6. What the company knows, chosen by association with today's work.
+    recalled = recall(state, focus, limit=18) if focus else []
+    by_kind: dict[str, list[str]] = {"decision": [], "objection": [], "artifact": []}
+    if recalled:
+        for memory in recalled:
+            by_kind[memory.kind].append(memory.render())
+    else:
+        # Cold start, or no focus given: recency, which is what it always was.
+        by_kind["decision"] = [
+            f"- {d.title}"
+            + (f" (contested: {d.contest_note})" if d.contest_note else "")
+            for d in list(state.decisions.values())[-8:]
         ]
-        if serious:
-            lines = ["\n## What the critic flagged\n"]
-            lines.extend(f"- [{o.severity}] {o.text}" for o in serious[-5:])
-            blocks.append("\n".join(lines))
+        by_kind["objection"] = [
+            f"- [{o.severity}] {o.text}"
+            for o in list(state.objections.values())[-5:]
+            if o.severity in ("fatal", "serious")
+        ]
+        by_kind["artifact"] = [
+            f"- {a.path} ({a.confidence}) — {a.title}" for a in state.artifacts.values()
+        ]
 
-    # 6. What exists to read, and how much to trust it.
-    if state.artifacts:
-        lines = ["\n## Documents you can read\n"]
-        for artifact in state.artifacts.values():
-            lines.append(
-                f"- {artifact.path} ({artifact.confidence}) — {artifact.title}"
-            )
-        blocks.append("\n".join(lines))
+    # Recall already limits itself; the fallback lists everything and lets the
+    # token budget below decide, which is what it has always done.
+    if by_kind["decision"]:
+        blocks.append("\n".join(["\n## Decisions in force\n", *by_kind["decision"]]))
+    if by_kind["objection"]:
+        blocks.append(
+            "\n".join(["\n## What the critic flagged\n", *by_kind["objection"]])
+        )
+    if by_kind["artifact"]:
+        blocks.append(
+            "\n".join(["\n## Documents you can read\n", *by_kind["artifact"]])
+        )
 
     # 7. Anything the founder said. Rare, so it goes last but is worth keeping.
     if state.notes:

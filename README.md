@@ -129,6 +129,39 @@ has real URLs; the artifact is `sourced` only for visited pages; the ledger has
 a nonzero cost; `GET /api/v1/companies/{id}/events` reads like an employee, not
 a model; halt mid-shift returns in under two seconds and nothing is lost.
 
+#### What a company remembers
+
+A shift starts with a digest capped at 1,200 tokens. It used to fill that by
+recency — the last eight decisions, the last five objections — which is a fine
+default and a bad one for a company a month old, where the document that
+matters was filed three weeks ago.
+
+`werkhaus/brain/memory.py` is an adaptation of **HeLa-Mem** (arXiv:2604.16839):
+memories worked on in the same shift grow a link, `w <- (1-0.995)w + 0.02`, and
+retrieving one spreads activation to its neighbours at `beta = 0.1`. Three
+departures from the paper, all about scale: no embeddings (lexical overlap
+instead of cosine — free, offline, deterministic), the graph is a projection
+recomputed from the shift history rather than a stored table, and co-activation
+means *worked on together in a shift* rather than *returned by the same search*,
+which is a stronger signal and costs nothing to observe.
+
+What it buys, measured in `tests/contract/test_memory.py`: asked "what should we
+charge per month", association recalls a courier-costs document that shares **no
+words with the query**, because this company has always worked on pricing and
+shipping together — and what a parcel costs to send is what decides what you can
+charge. Lexical search cannot reach it.
+
+A company on its first shift has no associations, so recall falls back to
+recency. That is the paper's own cold-start caveat, and it degrades to exactly
+the behaviour that came before.
+
+**Panini** (arXiv:2602.15156) was considered and not adopted. Its memory is built
+by an LLM call per document at write time, which on a three-shift free tier
+spends the shift's budget on bookkeeping; its gains are on multi-hop QA over a
+corpus, and a company has a handful of documents. One idea did transfer: memory
+as structured units rather than prose chunks — which our artifacts, decisions and
+objections already are, for free.
+
 #### Choosing what the team thinks with
 
 Settings has a model picker: the providers worth naming, the models known to

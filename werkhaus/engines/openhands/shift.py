@@ -308,7 +308,13 @@ def _kickoff(agenda: list[str], brain, shift_number: int) -> str:
     every shift, and anything that changes cannot be part of a cached prefix.
     """
     digest = render_digest(
-        brain, role_id=ROLE_ID, role_name="Maya", shift_number=shift_number
+        brain,
+        role_id=ROLE_ID,
+        role_name="Maya",
+        shift_number=shift_number,
+        # Today's agenda is the query. What the company should remember is
+        # whatever it has repeatedly worked on alongside this.
+        focus=" ".join(agenda),
     )
     lines = "\n".join(f"- {item}" for item in agenda)
     return (
