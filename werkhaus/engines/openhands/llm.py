@@ -108,14 +108,26 @@ def build_llm(
     )
 
 
-def build_condenser(llm: LLM) -> LLMSummarizingCondenser:
-    """The preset's summarizing condenser, replicated: without one, a long
-    research run dies on context length instead of forgetting gracefully."""
-    return LLMSummarizingCondenser(
-        llm=llm.model_copy(update={"usage_id": "condenser"}),
-        max_size=80,
-        keep_first=4,
-    )
+def build_condenser(llm: LLM):
+    """Forget old tool output rather than paying a model to summarise it.
+
+    Measured, not assumed: 97% of a shift's tokens are input, and old browser
+    pages are most of it. `The Complexity Trap` (arXiv:2508.21433) found that
+    dropping stale observations halves cost against the raw agent and matches
+    summarisation's solve rate — while summarising costs extra calls and loses
+    the record of what was already tried, so agents repeat failed work.
+
+    Set WERKHAUS_CONDENSER=summarize to go back to the old behaviour.
+    """
+    if os.getenv("WERKHAUS_CONDENSER", "mask").lower() == "summarize":
+        return LLMSummarizingCondenser(
+            llm=llm.model_copy(update={"usage_id": "condenser"}),
+            max_size=80,
+            keep_first=4,
+        )
+    from werkhaus.engines.openhands.condenser import ObservationMaskingCondenser
+
+    return ObservationMaskingCondenser()
 
 
 def estimate_cost(

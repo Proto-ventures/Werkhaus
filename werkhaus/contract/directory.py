@@ -24,9 +24,9 @@ A catalog entry in `catalog.py` carries walkthrough prose written against the
 provider's actual sign-up flow, a credential pattern, and a probe that proves
 the key works before it is stored. That is roughly an afternoon of research per
 entry, and it is why there are six of them. A directory entry carries what its
-publisher said about it. Nobody here has run these. Nobody has read their code. Claiming otherwise by dressing them up as catalog cards would make the
-six verified ones worthless, because a founder could no longer tell which was
-which.
+publisher said about it. Nobody here has run these, and nobody has read their
+code. Dressing them up as catalog cards would make the six verified ones
+worthless, because a founder could no longer tell which was which.
 
 So the directory is a search over what exists, and the generic connection is
 what makes any of them usable: an address or a command, plus whatever

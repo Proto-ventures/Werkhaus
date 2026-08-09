@@ -15,6 +15,7 @@ from decimal import Decimal
 
 from openhands.sdk import LocalConversation
 
+from werkhaus.brain.digest import render_digest
 from werkhaus.contract.events import ShiftEventKind as K
 from werkhaus.contract.models import (
     Progress,
@@ -134,7 +135,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
         company.conversation = conversation
 
         async with _WORK_SLOT:
-            conversation.send_message(_kickoff(shift.agenda))
+            conversation.send_message(_kickoff(shift.agenda, brain, number))
             run = asyncio.ensure_future(asyncio.to_thread(conversation.run))
             try:
                 while True:
@@ -300,13 +301,21 @@ def _phase(
     company.bus.emit(K.PHASE_CHANGED, text, shift_id=sid, payload={"phase": phase})
 
 
-def _kickoff(agenda: list[str]) -> str:
+def _kickoff(agenda: list[str], brain, shift_number: int) -> str:
+    """The opening message: what to do, and what the company already knows.
+
+    The digest lives here rather than in the system prompt because it changes
+    every shift, and anything that changes cannot be part of a cached prefix.
+    """
+    digest = render_digest(
+        brain, role_id=ROLE_ID, role_name="Maya", shift_number=shift_number
+    )
     lines = "\n".join(f"- {item}" for item in agenda)
     return (
         "Your shift has started. On the agenda:\n"
         f"{lines}\n\n"
-        "Start by reading the company digest (werkhaus_brain, op=read_digest), "
-        "claim what you will work on, and get going."
+        f"{digest}\n\n"
+        "Claim what you will work on, and get going."
     )
 
 

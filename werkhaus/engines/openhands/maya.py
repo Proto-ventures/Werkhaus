@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from openhands.sdk import Agent, AgentContext, Tool
 
-from werkhaus.brain.digest import render_digest
 from werkhaus.brain.store import BrainStore
 from werkhaus.engines.openhands.llm import build_condenser
 
@@ -94,17 +93,20 @@ def build_agent(  # noqa: PLR0913
     if browsing:
         tools.insert(0, Tool(name="browser_tool_set"))
 
-    digest = render_digest(
-        brain, role_id="researcher", role_name="Maya", shift_number=shift_number
-    )
+    # The digest is deliberately NOT here. It changes every shift, and a
+    # system prompt that changes is a cached prefix thrown away: providers
+    # cache by exact prefix match, so the 8,200 tokens of identity, rules and
+    # tool schemas below can only be reused if they are byte-identical from
+    # one shift to the next. The digest goes into the opening message instead,
+    # where being different every time costs nothing.
+    # (Don't Break the Cache, arXiv:2601.06007 — 41-80% off long-horizon
+    # agentic tasks, and the first rule is separating static from dynamic.)
     return Agent(
         llm=llm,
         tools=tools,
         mcp_config=mcp or {},
         filter_tools_regex=tool_filter,
-        agent_context=AgentContext(
-            system_message_suffix=f"{MAYA_RULES}\n\n{digest}"
-        ),
+        agent_context=AgentContext(system_message_suffix=MAYA_RULES),
         # Passing our own identity also neutralizes any ~/.openhands/SOUL.md on
         # the host, which would otherwise silently replace it.
         system_prompt_kwargs={"soul_content": MAYA_SOUL},

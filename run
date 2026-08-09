@@ -8,7 +8,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 if [[ -f werkhaus.env ]]; then
-  set -a; source werkhaus.env; set +a
+  # Defaults, not overrides: a variable already set on the command line wins,
+  # so `WERKHAUS_DATA=./scratch ./run` does what it looks like it does.
+  while IFS= read -r line; do
+    [[ "$line" =~ ^[[:space:]]*# || -z "${line// }" ]] && continue
+    key="${line%%=*}"; val="${line#*=}"; val="${val%\"}"; val="${val#\"}"
+    [[ -z "${!key:-}" ]] && export "$key=$val"
+  done < werkhaus.env
 else
   echo "no werkhaus.env — copy werkhaus.env.example and fill it in" >&2
 fi
