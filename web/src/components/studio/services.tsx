@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { api, type IntegrationState } from '@/api/client'
 import { Mark } from '@/components/bauhaus'
 import { ConnectWalkthrough } from '@/components/studio/connect'
+import { Directory } from '@/components/studio/directory'
 import { Vault } from '@/components/studio/planwork'
 import { cn } from '@/lib/utils'
 
@@ -118,8 +119,18 @@ export function Services({ cid }: { cid: string }) {
         )
       })}
 
-      <div>
+      <section>
         <p className="eyebrow text-ink-faint mb-2">anything else</p>
+        <p className="text-ink-soft mb-3 max-w-xl text-[0.8125rem] leading-snug">
+          The six above are set up by us and checked before they're saved.
+          Below is every other service anyone has published an MCP server for —
+          thousands of them, none tested by us.
+        </p>
+        <Directory cid={cid} />
+      </section>
+
+      <div>
+        <p className="eyebrow text-ink-faint mb-2">other keys</p>
         <Vault cid={cid} allowance={null} />
       </div>
     </div>

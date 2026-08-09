@@ -31,6 +31,7 @@ from werkhaus.engines.openhands.brain_tool import (
 )
 from werkhaus.engines.openhands.llm import build_llm, estimate_cost
 from werkhaus.engines.openhands.maya import build_agent
+from werkhaus.engines.openhands.mcp import build_for_shift
 from werkhaus.engines.openhands.narrator import Narrator
 from werkhaus.engines.openhands.runtime import OpenHandsCompany
 
@@ -105,8 +106,19 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             llm = build_llm(
                 ROLE_ID, api_key=api_key, model=model_name, base_url=base_url
             )
+        # What the founder connected, minus whatever isn't answering and
+        # whatever doesn't fit in one employee's head.
+        mcp = build_for_shift(engine, company)
+        for line in mcp.said():
+            bus.emit(K.ROLE_SAID, f"Ada: {line}", shift_id=sid)
         agent = build_agent(
-            llm, company.id, brain, number, browsing=engine.browsing
+            llm,
+            company.id,
+            brain,
+            number,
+            browsing=engine.browsing and mcp.browsing_allowed,
+            mcp=mcp.servers or None,
+            tool_filter=mcp.filter_regex if mcp.servers else None,
         )
         run_cap = min(ROLE_CAP, company.per_shift_cap, company.cap - company.spent)
         conversation = LocalConversation(

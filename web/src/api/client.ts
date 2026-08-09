@@ -69,6 +69,8 @@ export type CredentialField = components['schemas']['CredentialField']
 export type ProvisionedResource = components['schemas']['ProvisionedResource']
 export type BrainProvider = components['schemas']['BrainProvider']
 export type BrainChoice = components['schemas']['BrainChoice']
+export type DirectoryEntry = components['schemas']['DirectoryEntry']
+export type McpConnection = components['schemas']['McpConnection']
 
 export const api = {
   listCompanies: () => request<Company[]>('/companies'),
@@ -134,6 +136,31 @@ export const api = {
   disconnectIntegration: (cid: string, provider: string) =>
     request<void>(`/companies/${cid}/integrations/${provider}`, { method: 'DELETE' }),
   listBrains: () => request<BrainProvider[]>('/brains'),
+  searchDirectory: (q: string, limit = 12) =>
+    request<DirectoryEntry[]>(
+      `/mcp/directory?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
+  mcpCategories: () =>
+    request<{ categories: string[]; total: number }>('/mcp/categories'),
+  listMcp: (cid: string) => request<McpConnection[]>(`/companies/${cid}/mcp`),
+  addMcp: (
+    cid: string,
+    body: {
+      name: string
+      label: string
+      transport?: string
+      url?: string
+      command?: string
+      env?: Record<string, string>
+      directory_url?: string
+    },
+  ) =>
+    request<McpConnection>(`/companies/${cid}/mcp`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  removeMcp: (cid: string, name: string) =>
+    request<void>(`/companies/${cid}/mcp/${name}`, { method: 'DELETE' }),
   getBrain: (cid: string) => request<BrainChoice>(`/companies/${cid}/brain`),
   setBrain: (
     cid: string,

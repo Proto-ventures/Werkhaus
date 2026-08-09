@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from werkhaus.contract.brains import BrainChoice
+from werkhaus.contract.directory import McpConnection
 from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import (
     CompanyNotFound,
@@ -174,6 +175,27 @@ class NullEngine(Engine):
         raise CompanyNotFound()
 
     async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
+        raise CompanyNotFound()
+
+    async def list_mcp(self, cid: CompanyId) -> list[McpConnection]:
+        """Servers this company has been connected to by hand."""
+        raise CompanyNotFound()
+
+    async def add_mcp(  # noqa: PLR0913
+        self,
+        cid: CompanyId,
+        name: str,
+        label: str,
+        transport: str = "stdio",
+        url: str | None = None,
+        command: str | None = None,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        directory_url: str | None = None,
+    ) -> McpConnection:
+        raise CompanyNotFound()
+
+    async def remove_mcp(self, cid: CompanyId, name: str) -> None:
         raise CompanyNotFound()
 
     async def get_brain(self, cid: CompanyId) -> BrainChoice:

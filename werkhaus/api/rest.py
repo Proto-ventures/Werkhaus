@@ -16,6 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from werkhaus.api.deps import EngineDep
 from werkhaus.contract.brains import BRAINS, BrainChoice, BrainProvider
 from werkhaus.contract.catalog import CATALOG
+from werkhaus.contract.directory import (
+    DirectoryEntry,
+    McpConnection,
+    categories,
+    search,
+)
+from werkhaus.contract.directory import count as directory_count
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.integrations import (
     IntegrationSpec,
@@ -154,6 +161,62 @@ async def disconnect_integration(
 @router.get("/companies/{cid}/resources", response_model=list[ProvisionedResource])
 async def list_resources(cid: str, engine: EngineDep) -> list[ProvisionedResource]:
     return await engine.list_resources(cid)
+
+
+class McpBody(_Body):
+    name: str = Field(min_length=1, max_length=40)
+    label: str = Field(min_length=1, max_length=80)
+    transport: str = "stdio"
+    url: str | None = None
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict)
+    directory_url: str | None = None
+
+
+@router.get("/mcp/directory", response_model=list[DirectoryEntry])
+async def mcp_directory(
+    q: str = "",
+    category: str | None = None,
+    official: bool = False,
+    remote: bool = False,
+    limit: int = Query(40, ge=1, le=200),
+) -> list[DirectoryEntry]:
+    """Search every MCP server we know of. Unverified by us — see directory.py."""
+    return search(q, category, official, remote, limit)
+
+
+@router.get("/mcp/categories")
+async def mcp_categories() -> dict[str, object]:
+    return {"categories": categories(), "total": directory_count()}
+
+
+@router.get("/companies/{cid}/mcp", response_model=list[McpConnection])
+async def list_mcp(cid: str, engine: EngineDep) -> list[McpConnection]:
+    return await engine.list_mcp(cid)
+
+
+@router.post("/companies/{cid}/mcp", response_model=McpConnection)
+async def add_mcp(cid: str, body: McpBody, engine: EngineDep) -> McpConnection:
+    return await engine.add_mcp(
+        cid,
+        name=body.name,
+        label=body.label,
+        transport=body.transport,
+        url=body.url,
+        command=body.command,
+        args=body.args,
+        env=body.env,
+        directory_url=body.directory_url,
+    )
+
+
+@router.delete(
+    "/companies/{cid}/mcp/{name}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def remove_mcp(cid: str, name: str, engine: EngineDep) -> Response:
+    await engine.remove_mcp(cid, name)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 class BrainBody(_Body):

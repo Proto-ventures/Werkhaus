@@ -133,6 +133,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Directory
+         * @description Search every MCP server we know of. Unverified by us — see directory.py.
+         */
+        get: operations["mcp_directory_api_v1_mcp_directory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mcp Categories */
+        get: operations["mcp_categories_api_v1_mcp_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mcp */
+        get: operations["list_mcp_api_v1_companies__cid__mcp_get"];
+        put?: never;
+        /** Add Mcp */
+        post: operations["add_mcp_api_v1_companies__cid__mcp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/mcp/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Mcp */
+        delete: operations["remove_mcp_api_v1_companies__cid__mcp__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/brains": {
         parameters: {
             query?: never;
@@ -1110,6 +1182,70 @@ export interface components {
              */
             at: string;
         };
+        /**
+         * DirectoryEntry
+         * @description One server someone published. Unverified by us, and labelled as such.
+         */
+        DirectoryEntry: {
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+            /**
+             * Official
+             * @default false
+             */
+            official: boolean;
+            /**
+             * Remote
+             * @default false
+             */
+            remote: boolean;
+            /** Url Hint */
+            url_hint?: string | null;
+            /** Cmd Hint */
+            cmd_hint?: string | null;
+            /** Transport */
+            transport?: string | null;
+            /** Env */
+            env?: components["schemas"]["EnvField"][];
+            /**
+             * Source
+             * @default awesome-mcp-servers
+             */
+            source: string;
+        };
+        /**
+         * EnvField
+         * @description A value a server says it needs, in its own words.
+         *
+         *     Taken from the server's registry entry, which is why the connect form can
+         *     be generated rather than written: the label below is the publisher's own
+         *     description of what they want.
+         */
+        EnvField: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Secret
+             * @default true
+             */
+            secret: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1197,6 +1333,67 @@ export interface components {
              * Format: date-time
              */
             at: string;
+        };
+        /** McpBody */
+        McpBody: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /**
+             * Transport
+             * @default stdio
+             */
+            transport: string;
+            /** Url */
+            url?: string | null;
+            /** Command */
+            command?: string | null;
+            /** Args */
+            args?: string[];
+            /** Env */
+            env?: {
+                [key: string]: string;
+            };
+            /** Directory Url */
+            directory_url?: string | null;
+        };
+        /**
+         * McpConnection
+         * @description A server this company has been connected to by hand.
+         *
+         *     Values live in the vault like every other credential; this is the shape of
+         *     what is stored beside them, and what the studio shows back.
+         */
+        McpConnection: {
+            /** Name */
+            name: string;
+            /** Label */
+            label: string;
+            /**
+             * Transport
+             * @default stdio
+             */
+            transport: string;
+            /** Url */
+            url?: string | null;
+            /** Command */
+            command?: string | null;
+            /** Args */
+            args?: string[];
+            /** Env Names */
+            env_names?: string[];
+            /** Directory Url */
+            directory_url?: string | null;
+            /** Added At */
+            added_at?: string | null;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+            /** Note */
+            note?: string | null;
         };
         /** NoteBody */
         NoteBody: {
@@ -1891,6 +2088,159 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProvisionedResource"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_directory_api_v1_mcp_directory_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                category?: string | null;
+                official?: boolean;
+                remote?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_categories_api_v1_mcp_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    list_mcp_api_v1_companies__cid__mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpConnection"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_mcp_api_v1_companies__cid__mcp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpConnection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_mcp_api_v1_companies__cid__mcp__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

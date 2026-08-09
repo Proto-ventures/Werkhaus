@@ -68,8 +68,25 @@ record open questions as tasks instead. You have no shell and need none.
 """.strip()
 
 
-def build_agent(llm, company_id: str, brain: BrainStore, shift_number: int, *,
-                browsing: bool = True) -> Agent:
+def build_agent(  # noqa: PLR0913
+    llm,
+    company_id: str,
+    brain: BrainStore,
+    shift_number: int,
+    *,
+    browsing: bool = True,
+    mcp: dict | None = None,
+    tool_filter: str | None = None,
+) -> Agent:
+    if browsing and mcp:
+        # Enforced here rather than asked for in a prompt: an employee reading
+        # the open web is reading text strangers wrote, and an employee holding
+        # the company's keys can act on it. Never the same conversation.
+        raise ValueError(
+            "an employee may not browse the open web and hold company "
+            "credentials in the same shift"
+        )
+
     tools = [
         Tool(name="file_editor"),
         Tool(name="werkhaus_brain", params={"company_id": company_id}),
@@ -83,6 +100,8 @@ def build_agent(llm, company_id: str, brain: BrainStore, shift_number: int, *,
     return Agent(
         llm=llm,
         tools=tools,
+        mcp_config=mcp or {},
+        filter_tools_regex=tool_filter,
         agent_context=AgentContext(
             system_message_suffix=f"{MAYA_RULES}\n\n{digest}"
         ),

@@ -38,6 +38,7 @@ from werkhaus.contract.catalog import field as catalog_field
 from werkhaus.contract.catalog import refused_names as catalog_refused
 from werkhaus.contract.catalog import spec as catalog_spec
 from werkhaus.contract.credentials import CredentialClass, classify
+from werkhaus.contract.directory import McpConnection
 from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import (
     ArtifactNotFound,
@@ -805,6 +806,118 @@ class BaseEngine(Engine):
             fields=sorted(removed),
             message=f"{entry.display_name} was disconnected.",
         )
+
+    # ------------------------------------------------------- mcp connections
+    MCP_METRIC = "mcp_servers"
+    _MCP_NAME = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
+
+    def _mcp_rows(self, company: CompanyRuntime) -> list[dict[str, Any]]:
+        return list(company.brain.state.metrics.get(self.MCP_METRIC) or [])
+
+    async def list_mcp(self, cid: CompanyId) -> list[McpConnection]:
+        company = self._get(cid)
+        vault = self._vault_read(company)
+        out = []
+        for row in self._mcp_rows(company):
+            missing = [n for n in row.get("env_names", []) if n not in vault]
+            out.append(
+                McpConnection(
+                    **row,
+                    note="Some of what it needs is missing." if missing else None,
+                )
+            )
+        return out
+
+    async def add_mcp(  # noqa: PLR0913
+        self,
+        cid: CompanyId,
+        name: str,
+        label: str,
+        transport: str = "stdio",
+        url: str | None = None,
+        command: str | None = None,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        directory_url: str | None = None,
+    ) -> McpConnection:
+        """Connect any MCP server, by address or by command.
+
+        This is what makes a directory of six thousand servers usable without
+        pretending we have tested them: the founder brings what the server's
+        own publisher documented, and it is stored the same way every other
+        credential is.
+        """
+        company = self._get(cid)
+        name = name.strip().lower().replace("-", "_")
+        if not self._MCP_NAME.match(name):
+            raise ValidationFailed(
+                "Give it a short name in lowercase letters, like `shopify`.",
+            )
+        if transport == "stdio" and not (command or "").strip():
+            raise ValidationFailed("A local server needs a command to start it.")
+        if transport != "stdio" and not (url or "").strip():
+            raise ValidationFailed("A remote server needs an address.")
+        rows = [r for r in self._mcp_rows(company) if r["name"] != name]
+
+        vault = self._vault_read(company)
+        stamp = datetime.now(UTC).isoformat()
+        env_names = []
+        for key, value in (env or {}).items():
+            key = key.strip()
+            if not key or not value.strip():
+                continue
+            self._refuse_forbidden(key)
+            stored = f"MCP_{name}_{key}".upper()
+            vault[stored] = {"value": value.strip(), "added_at": stamp}
+            env_names.append(stored)
+        self._vault_write(company, vault)
+
+        row = {
+            "name": name,
+            "label": label.strip() or name,
+            "transport": transport,
+            "url": (url or "").strip() or None,
+            "command": (command or "").strip() or None,
+            "args": list(args or []),
+            "env_names": env_names,
+            "directory_url": directory_url,
+            "added_at": stamp,
+            "verified": False,
+        }
+        rows.append(row)
+        company.brain.record_metric(self.MCP_METRIC, rows)
+        company.brain.record_integration(
+            provider=f"mcp:{name}",
+            event="connected",
+            fields=env_names,
+            message=f"{row['label']} is connected.",
+        )
+        return McpConnection(**row)
+
+    async def remove_mcp(self, cid: CompanyId, name: str) -> None:
+        company = self._get(cid)
+        rows = self._mcp_rows(company)
+        row = next((r for r in rows if r["name"] == name), None)
+        if row is None:
+            raise IntegrationNotFound("That server isn't connected.")
+        vault = self._vault_read(company)
+        for key in row.get("env_names", []):
+            vault.pop(key, None)
+        self._vault_write(company, vault)
+        company.brain.record_metric(
+            self.MCP_METRIC, [r for r in rows if r["name"] != name]
+        )
+
+    def mcp_env(self, company: CompanyRuntime, row: dict[str, Any]) -> dict[str, str]:
+        """The values a connected server needs, read at shift time."""
+        vault = self._vault_read(company)
+        out = {}
+        for stored in row.get("env_names", []):
+            original = stored[len(f"MCP_{row['name']}_") :]
+            value = (vault.get(stored) or {}).get("value")
+            if value:
+                out[original] = value
+        return out
 
     # ------------------------------------------------------------------ brain
     async def get_brain(self, cid: CompanyId) -> BrainChoice:
