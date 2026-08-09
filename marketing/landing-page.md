@@ -18,11 +18,12 @@ machine-written:
 
 ## Hero
 
-# Describe a business. Eight employees work a shift on it.
+# Describe a business. Eight employees build it.
 
-You get market research with the sources attached, a price you can defend, and a
-landing page that loads. Vera, the eighth, spends her shift trying to prove the
-other seven wrong.
+You get a working product. Research with its sources, a price you can defend, a
+database of your own, and a page at a real address that takes signups and
+payments. Vera, the eighth, spends her shift trying to prove the other seven
+wrong.
 
 `[ prompt box ]`
 `[ start the company ]`
@@ -51,6 +52,7 @@ it.
 
 | | | | |
 |---|---|---|---|
+| ada | chief of staff | the shift write-up | — |
 | maya | researcher | market-research.md | sourced, 3 links |
 | ines | strategist | positioning.md | inferred, 2 decisions |
 | otto | brand | landing-copy.md | inferred |

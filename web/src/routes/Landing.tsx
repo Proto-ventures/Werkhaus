@@ -181,8 +181,8 @@ function Hero() {
           </h1>
 
           <p className="text-ink-soft mt-5 max-w-xl text-[1.0625rem] leading-relaxed">
-            Not a mockup — a working product. Research with its sources, a price
-            you can defend, a database of your own, and a page at a real address
+            You get a working product. Research with its sources, a price you
+            can defend, a database of your own, and a page at a real address
             that takes signups and payments. Vera, the eighth, spends her shift
             trying to prove the other seven wrong.
           </p>
@@ -204,13 +204,24 @@ function Hero() {
                   ctrl + enter
                 </span>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setExample((n) => n + 1)}
-                  className="text-link font-mono text-[0.6875rem] underline"
-                >
-                  show another example
-                </button>
+                // What the only button on the page costs, said before it is
+                // pressed. A stranger cannot tell from "start the company"
+                // whether they are about to be charged, and an unpriced action
+                // is a reason to not press it. The example link gives way on
+                // small screens: both fit at sm and up, and of the two, the
+                // price is the one that decides whether anyone acts.
+                <span className="flex items-center gap-3">
+                  <span className="text-ink-faint font-mono text-[0.6875rem]">
+                    free while we are testing
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExample((n) => n + 1)}
+                    className="text-link hidden font-mono text-[0.6875rem] underline sm:inline"
+                  >
+                    show another example
+                  </button>
+                </span>
               )}
               <button
                 type="button"
