@@ -67,6 +67,8 @@ export type Connection = components['schemas']['Connection']
 export type WalkStep = components['schemas']['WalkStep']
 export type CredentialField = components['schemas']['CredentialField']
 export type ProvisionedResource = components['schemas']['ProvisionedResource']
+export type BrainProvider = components['schemas']['BrainProvider']
+export type BrainChoice = components['schemas']['BrainChoice']
 
 export const api = {
   listCompanies: () => request<Company[]>('/companies'),
@@ -131,6 +133,16 @@ export const api = {
     }),
   disconnectIntegration: (cid: string, provider: string) =>
     request<void>(`/companies/${cid}/integrations/${provider}`, { method: 'DELETE' }),
+  listBrains: () => request<BrainProvider[]>('/brains'),
+  getBrain: (cid: string) => request<BrainChoice>(`/companies/${cid}/brain`),
+  setBrain: (
+    cid: string,
+    body: { provider: string; model: string; key: string; base_url?: string },
+  ) =>
+    request<BrainChoice>(`/companies/${cid}/brain`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   listResources: (cid: string) =>
     request<ProvisionedResource[]>(`/companies/${cid}/resources`),
   listLedger: (cid: string) => request<LedgerEntry[]>(`/companies/${cid}/ledger`),

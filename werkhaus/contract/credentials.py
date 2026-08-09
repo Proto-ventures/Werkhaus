@@ -45,6 +45,7 @@ REFERENCE_NAMES: frozenset[str] = frozenset(
         "STRIPE_PAYMENT_LINK",
         "X402_WALLET_ADDRESS",
         "WERKHAUS_MODEL",
+        "WERKHAUS_MODEL_BASE_URL",
     }
 )
 

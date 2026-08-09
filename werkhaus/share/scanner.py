@@ -22,6 +22,10 @@ PATTERNS: dict[str, re.Pattern[str]] = {
     "GitHub token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}"),
     "AWS access key": re.compile(r"\bAKIA[0-9A-Z]{12,}"),
     "Google API key": re.compile(r"\bAIza[0-9A-Za-z_-]{30,}"),
+    # Google's newer format, issued by AI Studio alongside the AIza ones. The
+    # entropy backstop caught these already; naming them means the finding says
+    # what it found, and does not depend on the last line of defence.
+    "Google API key (new format)": re.compile(r"\bAQ\.[A-Za-z0-9_-]{30,}"),
     "Slack token": re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}"),
     "Stripe key": re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}"),
     "Stripe webhook signing secret": re.compile(r"\bwhsec_[A-Za-z0-9]{16,}"),

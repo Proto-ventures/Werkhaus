@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from werkhaus.brain.store import BrainStore
+from werkhaus.contract.brains import VAULT_BASE_URL, provider_for
 from werkhaus.contract.events import ShiftEventKind as K
 from werkhaus.contract.models import Charter, Company, CompanyId, Shift
 from werkhaus.engines.bus import CompanyBus
@@ -50,7 +51,9 @@ class OpenHandsEngine(BaseEngine):
     VAULT_KEY = "WERKHAUS_MODEL_KEY"
     VAULT_MODEL = "WERKHAUS_MODEL"
 
-    def byok(self, company: CompanyRuntime) -> tuple[str | None, str | None]:
+    def byok(
+        self, company: CompanyRuntime
+    ) -> tuple[str | None, str | None, str | None]:
         """The founder's own key and model, if their plan includes that.
 
         Off-plan the vault entry is ignored rather than rejected: someone who
@@ -60,13 +63,21 @@ class OpenHandsEngine(BaseEngine):
         """
         allowance = self.allowance()
         if not allowance.byok:
-            return None, None
+            return None, None, None
         vault = self._vault_read(company)
-        key = (vault.get(self.VAULT_KEY) or {}).get("value") or None
-        model = None
+        model = base_url = None
         if allowance.model_choice:
             model = (vault.get(self.VAULT_MODEL) or {}).get("value") or None
-        return key, model
+            base_url = (vault.get(VAULT_BASE_URL) or {}).get("value") or None
+        # The key lives under the provider's own name, so a founder who
+        # switches provider and switches back finds the old one still there.
+        brain = provider_for(model or "")
+        names = [brain.key_name] if brain else []
+        names.append(self.VAULT_KEY)
+        key = next(
+            (v for n in names if (v := (vault.get(n) or {}).get("value"))), None
+        )
+        return key, model, base_url
 
     # -------------------------------------------------------------- lifecycle
     async def start(self) -> None:

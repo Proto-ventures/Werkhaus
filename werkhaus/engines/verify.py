@@ -14,6 +14,7 @@ No ``openhands.*`` imports: this must stay importable without the SDK.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Protocol
@@ -38,6 +39,163 @@ class VerifyResult:
 
     scope_note: str | None = None
     """What this key can and cannot do, in the founder's terms."""
+
+
+PROBE_TOOL = [
+    {
+        "type": "function",
+        "function": {
+            "name": "werkhaus_check",
+            "description": "Confirm you can call a tool.",
+            "parameters": {
+                "type": "object",
+                "properties": {"ok": {"type": "boolean"}},
+                "required": ["ok"],
+            },
+        },
+    }
+]
+
+
+async def check_tool_calling(
+    model: str, key: str, base_url: str | None
+) -> VerifyResult:
+    """Ask the model to call one trivial tool, and see whether it does.
+
+    This is the check that matters and the one nobody thinks to make. A service
+    can hold a valid key, list a thousand models, answer chat requests happily
+    — and quietly drop the ``tools`` parameter. Every shift then talks and files
+    nothing, because the entire loop is tool calls. Costs about fifty tokens and
+    turns a wasted shift into a sentence at setup time.
+    """
+    import litellm
+
+    def _call():
+        return litellm.completion(
+            model=model,
+            api_key=key,
+            base_url=base_url or None,
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Call werkhaus_check with ok=true. Reply with "
+                    "nothing else.",
+                }
+            ],
+            tools=PROBE_TOOL,
+            max_tokens=256,
+        )
+
+    try:
+        response = await asyncio.to_thread(_call)
+    except Exception as exc:  # litellm raises a family of provider errors
+        text = str(exc)
+        if "not found" in text.lower() or "404" in text:
+            return VerifyResult(
+                False,
+                "That service doesn't have a model by that name.",
+                hint="Check the spelling against their model list.",
+            )
+        logger.warning("tool-calling probe failed for %s", model, exc_info=True)
+        return VerifyResult(False, "That model wouldn't answer.")
+
+    try:
+        called = bool(response.choices[0].message.tool_calls)
+    except Exception:
+        called = False
+    if not called:
+        return VerifyResult(
+            False,
+            "That model answered, but it can't use tools.",
+            hint="A shift is almost entirely tool calls, so the team would "
+            "talk and file nothing. Some services accept the request and quietly "
+            "ignore the tools — try a different model, or a provider that "
+            "supports them.",
+        )
+    return VerifyResult(True, "It answered and it can use tools.")
+
+
+async def check_brain(
+    provider_id: str,
+    key: str,
+    base_url: str | None,
+    model: str | None = None,
+    timeout: float = TIMEOUT,
+) -> VerifyResult:
+    """Does this key reach a model, and can that model work a shift?
+
+    Two questions, in cost order: list the models (free), then ask one of them
+    to call a tool (about fifty tokens). The second is the one that decides
+    whether a company can actually be run.
+    """
+    from werkhaus.contract.brains import BRAINS_BY_ID
+
+    brain = BRAINS_BY_ID.get(provider_id)
+    if brain is None:
+        return VerifyResult(False, "We don't know that provider.")
+
+    url = brain.probe_url
+    headers = {"Authorization": f"Bearer {key}"}
+    if brain.id == "gemini":
+        headers = {"x-goog-api-key": key}
+    elif brain.id == "anthropic":
+        headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+    if brain.needs_base_url:
+        if not base_url:
+            return VerifyResult(False, "That one needs an address as well as a key.")
+        url = base_url.rstrip("/") + "/models"
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            response = await client.get(url, headers=headers)
+    except httpx.TimeoutException:
+        return VerifyResult(False, "The service didn't answer in time.")
+    except httpx.HTTPError:
+        return VerifyResult(
+            False,
+            "We couldn't reach that address.",
+            hint="Check it starts with https:// and ends where the service's "
+            "API begins — often /v1.",
+        )
+
+    if response.status_code in (401, 403):
+        return VerifyResult(
+            False,
+            f"{brain.name} didn't recognise that key.",
+            hint=brain.key_hint or None,
+        )
+    if response.status_code == 404 and brain.needs_base_url:
+        return VerifyResult(
+            False,
+            "That address answered, but not with a list of models.",
+            hint="Most services want the part ending in /v1.",
+        )
+    if response.status_code >= 400:
+        return VerifyResult(False, f"{brain.name} turned that key down.")
+
+    names: list[str] = []
+    try:
+        body = response.json()
+        rows = body.get("data") or body.get("models") or []
+        for row in rows:
+            name = row.get("id") or row.get("name") or ""
+            if name:
+                names.append(str(name).split("/")[-1])
+    except ValueError:
+        pass
+    if model:
+        full = f"{brain.prefix}/{model}" if not brain.needs_base_url else model
+        if brain.needs_base_url:
+            full = f"openai/{model}"
+        usable = await check_tool_calling(full, key, base_url)
+        if not usable.ok:
+            return usable
+
+    return VerifyResult(
+        True,
+        f"{brain.name} answered, and the model can use tools.",
+        facts={"models": ",".join(names[:60])} if names else {},
+    )
 
 
 class Verifier(Protocol):

@@ -25,6 +25,14 @@ from typing import Any
 
 from werkhaus.brain.layout import CompanyPaths
 from werkhaus.brain.store import BrainStore
+from werkhaus.contract.brains import (
+    BRAINS_BY_ID,
+    VAULT_BASE_URL,
+    VAULT_KEY,
+    VAULT_MODEL,
+    BrainChoice,
+    provider_for,
+)
 from werkhaus.contract.catalog import CATALOG
 from werkhaus.contract.catalog import field as catalog_field
 from werkhaus.contract.catalog import refused_names as catalog_refused
@@ -89,7 +97,7 @@ from werkhaus.contract.models import (
 from werkhaus.contract.plan import Allowance, build_allowance, current_plan
 from werkhaus.engines.bus import CompanyBus
 from werkhaus.engines.roster import ROSTER, display_name
-from werkhaus.engines.verify import HttpVerifier, Verifier
+from werkhaus.engines.verify import HttpVerifier, Verifier, check_brain
 from werkhaus.share.scanner import scan_text
 from werkhaus.share.snapshot import build_snapshot
 
@@ -797,6 +805,86 @@ class BaseEngine(Engine):
             fields=sorted(removed),
             message=f"{entry.display_name} was disconnected.",
         )
+
+    # ------------------------------------------------------------------ brain
+    async def get_brain(self, cid: CompanyId) -> BrainChoice:
+        """What this company thinks with, and whether it may be changed."""
+        company = self._get(cid)
+        allowance = self.allowance()
+        vault = self._vault_read(company)
+        model = (vault.get(VAULT_MODEL) or {}).get("value") or None
+        provider = provider_for(model or "")
+        chosen = provider.id if provider else ("custom" if model else None)
+        key_entry = None
+        for name in ([provider.key_name] if provider else []) + [VAULT_KEY]:
+            if name in vault:
+                key_entry = vault[name]
+                break
+        return BrainChoice(
+            provider=chosen,
+            model=model.split("/", 1)[-1] if model and "/" in model else model,
+            base_url=(vault.get(VAULT_BASE_URL) or {}).get("value") or None,
+            key_hint=self._vault_item("k", key_entry).hint if key_entry else None,
+            configured=bool(model and key_entry),
+            editable=allowance.byok and allowance.model_choice,
+            note=None
+            if allowance.byok
+            else "Choosing your own model comes with the bigger plan. Until "
+            "then the team thinks with ours, and nothing you save here is used.",
+        )
+
+    async def set_brain(
+        self,
+        cid: CompanyId,
+        provider: str,
+        model: str,
+        key: str,
+        base_url: str | None = None,
+    ) -> BrainChoice:
+        """Check the key reaches a model, then store it. Never the other way
+        round: finding out mid-shift costs a whole shift."""
+        company = self._get(cid)
+        brain = BRAINS_BY_ID.get(provider)
+        if brain is None:
+            raise IntegrationNotFound("We don't know that provider.")
+        if not self.allowance().byok:
+            raise IntegrationUnavailable(
+                "Choosing your own model comes with the bigger plan.",
+                hint="Everything you have built stays exactly as it is.",
+            )
+        model = model.strip()
+        if not model:
+            raise ValidationFailed("Which model should the team think with?")
+        if brain.needs_base_url and not (base_url or "").strip():
+            raise ValidationFailed("That one needs an address as well as a key.")
+        if avoid := brain.avoid.get(model):
+            raise CredentialRejected(f"That model {avoid}.")
+
+        result = await check_brain(
+            provider, key.strip(), (base_url or "").strip(), model
+        )
+        if not result.ok:
+            raise CredentialRejected(result.message, hint=result.hint)
+
+        vault = self._vault_read(company)
+        stamp = datetime.now(UTC).isoformat()
+        vault[brain.key_name] = {"value": key.strip(), "added_at": stamp}
+        vault[VAULT_MODEL] = {"value": f"{brain.prefix}/{model}", "added_at": stamp}
+        if brain.needs_base_url:
+            vault[VAULT_BASE_URL] = {
+                "value": (base_url or "").strip(),
+                "added_at": stamp,
+            }
+        else:
+            vault.pop(VAULT_BASE_URL, None)
+        self._vault_write(company, vault)
+        company.brain.record_integration(
+            provider=f"brain:{provider}",
+            event="connected",
+            fields=[brain.key_name, VAULT_MODEL],
+            message=f"The team thinks with {model}.",
+        )
+        return await self.get_brain(cid)
 
     async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
         company = self._get(cid)

@@ -157,10 +157,10 @@ def test_byok_is_ignored_off_plan_rather_than_rejected(tmp_path, monkeypatch) ->
             runtime = engine._get(company.id)
 
             monkeypatch.setenv("WERKHAUS_PLAN", "free")
-            assert engine.byok(runtime) == (None, None)
+            assert engine.byok(runtime) == (None, None, None)
 
             monkeypatch.setenv("WERKHAUS_PLAN", "pro")
-            assert engine.byok(runtime) == ("sk-mine", None)
+            assert engine.byok(runtime) == ("sk-mine", None, None)
         finally:
             await engine.aclose()
 

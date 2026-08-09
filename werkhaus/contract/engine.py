@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
+from werkhaus.contract.brains import BrainChoice
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.integrations import (
     IntegrationState,
@@ -148,6 +149,19 @@ class Engine(Protocol):
     async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
         """What the team has built that the founder now owns."""
         ...
+
+    async def get_brain(self, cid: CompanyId) -> BrainChoice:
+        """What the employees think with. Never returns the key."""
+        ...
+
+    async def set_brain(
+        self,
+        cid: CompanyId,
+        provider: str,
+        model: str,
+        key: str,
+        base_url: str | None = None,
+    ) -> BrainChoice: ...
 
     async def get_spend_policy(self, cid: CompanyId) -> SpendPolicy: ...
 

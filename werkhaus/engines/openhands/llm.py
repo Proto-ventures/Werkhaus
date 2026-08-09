@@ -73,7 +73,11 @@ def check_model_config() -> None:
 
 
 def build_llm(
-    usage_id: str, *, api_key: str | None = None, model: str | None = None
+    usage_id: str,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
 ) -> LLM:
     """The employee's brain.
 
@@ -87,7 +91,7 @@ def build_llm(
     return LLM(
         model=(model or os.environ["WERKHAUS_MODEL"]).strip(),
         api_key=api_key or os.getenv("WERKHAUS_MODEL_KEY") or None,
-        base_url=os.getenv("WERKHAUS_MODEL_BASE_URL") or None,
+        base_url=base_url or os.getenv("WERKHAUS_MODEL_BASE_URL") or None,
         usage_id=usage_id,
         input_cost_per_token=_cost_per_token(
             "WERKHAUS_INPUT_COST_PER_MTOK", DEFAULT_INPUT_PER_MTOK

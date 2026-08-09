@@ -14,6 +14,7 @@ from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from werkhaus.api.deps import EngineDep
+from werkhaus.contract.brains import BRAINS, BrainChoice, BrainProvider
 from werkhaus.contract.catalog import CATALOG
 from werkhaus.contract.events import ShiftEvent
 from werkhaus.contract.integrations import (
@@ -153,6 +154,31 @@ async def disconnect_integration(
 @router.get("/companies/{cid}/resources", response_model=list[ProvisionedResource])
 async def list_resources(cid: str, engine: EngineDep) -> list[ProvisionedResource]:
     return await engine.list_resources(cid)
+
+
+class BrainBody(_Body):
+    provider: str
+    model: str = Field(min_length=1, max_length=200)
+    key: str = Field(min_length=1, max_length=8000)
+    base_url: str | None = None
+
+
+@router.get("/brains", response_model=list[BrainProvider])
+async def list_brains() -> list[BrainProvider]:
+    """The providers we know, and the models known to work a shift."""
+    return list(BRAINS)
+
+
+@router.get("/companies/{cid}/brain", response_model=BrainChoice)
+async def get_brain(cid: str, engine: EngineDep) -> BrainChoice:
+    return await engine.get_brain(cid)
+
+
+@router.put("/companies/{cid}/brain", response_model=BrainChoice)
+async def set_brain(cid: str, body: BrainBody, engine: EngineDep) -> BrainChoice:
+    return await engine.set_brain(
+        cid, body.provider, body.model, body.key, body.base_url
+    )
 
 
 @router.get("/companies/{cid}/spend-policy", response_model=SpendPolicy)

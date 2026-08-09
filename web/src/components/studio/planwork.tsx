@@ -26,6 +26,7 @@ import {
   LedgerTable,
   ObjectionRow,
 } from '@/components/dash'
+import { Brain } from '@/components/studio/brain'
 import { AUTONOMY_OPTIONS, allowed } from '@/components/studio/rail'
 import { ArtifactReader } from '@/components/work'
 import { money } from '@/lib/display'
@@ -350,10 +351,12 @@ function SettingsPane({
       <div>
         <h2 className="display text-xl">Settings &amp; keys</h2>
         <p className="text-ink-soft mt-1 max-w-xl text-[0.8125rem] leading-snug">
-          How much the team does on its own, keys it can use, the public link,
-          and the stop button.
+          What the team thinks with, how much it does on its own, the public
+          link, and the stop button.
         </p>
       </div>
+
+      <Brain cid={company.id} />
 
       <div className="panel">
         <p className="border-rule-soft border-b px-4 py-3">

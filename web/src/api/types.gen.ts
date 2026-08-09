@@ -133,6 +133,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/brains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Brains
+         * @description The providers we know, and the models known to work a shift.
+         */
+        get: operations["list_brains_api_v1_brains_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{cid}/brain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Brain */
+        get: operations["get_brain_api_v1_companies__cid__brain_get"];
+        /** Set Brain */
+        put: operations["set_brain_api_v1_companies__cid__brain_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/companies/{cid}/spend-policy": {
         parameters: {
             query?: never;
@@ -763,6 +801,99 @@ export interface components {
          * @enum {string}
          */
         Availability: "available" | "beta" | "manual_setup";
+        /** BrainBody */
+        BrainBody: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Key */
+            key: string;
+            /** Base Url */
+            base_url?: string | null;
+        };
+        /**
+         * BrainChoice
+         * @description What a company is currently thinking with. Never the key itself.
+         */
+        BrainChoice: {
+            /** Provider */
+            provider?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Key Hint */
+            key_hint?: string | null;
+            /**
+             * Configured
+             * @default false
+             */
+            configured: boolean;
+            /**
+             * Editable
+             * @default true
+             */
+            editable: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * BrainProvider
+         * @description One place a model can be reached.
+         */
+        BrainProvider: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Prefix */
+            prefix: string;
+            /** Key Name */
+            key_name: string;
+            /**
+             * Models
+             * @default []
+             */
+            models: string[];
+            /**
+             * Avoid
+             * @default {}
+             */
+            avoid: {
+                [key: string]: string;
+            };
+            /**
+             * Free Note
+             * @default
+             */
+            free_note: string;
+            /**
+             * Console Url
+             * @default
+             */
+            console_url: string;
+            /**
+             * Key Hint
+             * @default
+             */
+            key_hint: string;
+            /**
+             * Openai Compatible
+             * @default true
+             */
+            openai_compatible: boolean;
+            /**
+             * Needs Base Url
+             * @default false
+             */
+            needs_base_url: boolean;
+            /**
+             * Probe Url
+             * @default
+             */
+            probe_url: string;
+        };
         /** Budget */
         Budget: {
             /** Spent */
@@ -1759,6 +1890,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProvisionedResource"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_brains_api_v1_brains_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainProvider"][];
+                };
+            };
+        };
+    };
+    get_brain_api_v1_companies__cid__brain_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainChoice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_brain_api_v1_companies__cid__brain_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrainBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrainChoice"];
                 };
             };
             /** @description Validation Error */

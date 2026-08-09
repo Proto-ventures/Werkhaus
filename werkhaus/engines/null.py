@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from werkhaus.contract.brains import BrainChoice
 from werkhaus.contract.engine import Engine
 from werkhaus.contract.errors import (
     CompanyNotFound,
@@ -173,6 +174,19 @@ class NullEngine(Engine):
         raise CompanyNotFound()
 
     async def list_resources(self, cid: CompanyId) -> list[ProvisionedResource]:
+        raise CompanyNotFound()
+
+    async def get_brain(self, cid: CompanyId) -> BrainChoice:
+        raise CompanyNotFound()
+
+    async def set_brain(
+        self,
+        cid: CompanyId,
+        provider: str,
+        model: str,
+        key: str,
+        base_url: str | None = None,
+    ) -> BrainChoice:
         raise CompanyNotFound()
 
     async def get_spend_policy(self, cid: CompanyId) -> SpendPolicy:

@@ -129,6 +129,28 @@ has real URLs; the artifact is `sourced` only for visited pages; the ledger has
 a nonzero cost; `GET /api/v1/companies/{id}/events` reads like an employee, not
 a model; halt mid-shift returns in under two seconds and nothing is lost.
 
+#### Choosing what the team thinks with
+
+Settings has a model picker: the providers worth naming, the models known to
+work a shift, and one entry for **anything that speaks the OpenAI API** — a
+gateway, a router, a platform, a server of your own — which is an address and a
+key rather than a card we have to write.
+
+Verification asks two questions, in cost order: list the models (free), then
+**ask one of them to call a tool** (about fifty tokens). The second is the one
+that decides whether a company can be run at all, and the one nobody thinks to
+make. A service can hold a valid key, list a thousand models, answer chat
+requests happily, and quietly drop the `tools` parameter — every shift then
+talks and files nothing, because the loop is almost entirely tool calls.
+Swarms' `/v1/chat/completions` does exactly this, even with
+`tool_choice: "required"`, so Werkhaus refuses it at setup with a sentence
+instead of during a shift with a wasted allowance.
+
+Some models fail the same way on their own: `gemini-flash-latest` answers in
+prose, and `gemini-2.5-flash` 404s for keys issued in Google's newer `AQ.`
+format. Both are named in `werkhaus/contract/brains.py` so nobody rediscovers
+them the hard way.
+
 #### Free-tier providers that can carry a shift
 
 A shift is 30–80 model calls. Measured/verified against provider docs, Aug 2026
