@@ -20,7 +20,13 @@ class CompanyPaths:
     """Every path in a company, in one place."""
 
     def __init__(self, root: Path | str) -> None:
-        self.root = Path(root)
+        # Absolute, always. The file editor an employee holds refuses relative
+        # paths and tells her the workspace by echoing this one back to her —
+        # so a relative root here reads as "your workspace is
+        # data/co_x/workspace", she prepends a slash to satisfy the tool, and
+        # every write lands on a directory that does not exist. A whole shift
+        # was lost to that once.
+        self.root = Path(root).expanduser().resolve()
 
     # -- agent-visible -------------------------------------------------------
     @property

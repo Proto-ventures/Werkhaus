@@ -39,13 +39,17 @@ class OpenHandsEngine(BaseEngine):
         # Test seam: contract tests inject a scripted model here. Real runs
         # build from WERKHAUS_MODEL.
         self.llm_factory = llm_factory
-        if browsing is None:
-            browsing = os.getenv("WERKHAUS_NO_BROWSER", "").lower() not in (
-                "1",
-                "true",
-                "yes",
-            )
-        self.browsing = browsing
+        # Reading the open web at all, and having a chromium to do it with, are
+        # now two different things: web_search and web_read need no browser.
+        # WERKHAUS_NO_BROWSER therefore turns off chromium and leaves the
+        # employee able to research — which is what it always meant to people,
+        # and now costs them nothing.
+        self.chromium = os.getenv("WERKHAUS_NO_BROWSER", "").lower() not in (
+            "1",
+            "true",
+            "yes",
+        )
+        self.browsing = True if browsing is None else browsing
 
     # ------------------------------------------------------------------ byok
     VAULT_KEY = "WERKHAUS_MODEL_KEY"

@@ -235,7 +235,10 @@ class BaseEngine(Engine):
     def __init__(
         self, root: str | Path = "./data", verifier: Verifier | None = None
     ) -> None:
-        self.root = Path(root)
+        # Resolved here as well as in CompanyPaths: the engine hands this root
+        # to shares and snapshots, and a path that means different things from
+        # different working directories is not a path.
+        self.root = Path(root).expanduser().resolve()
         self._companies: dict[CompanyId, CompanyRuntime] = {}
         self._site_scan_cache: dict[tuple[str, int], bool] = {}
         # Injected in tests. In production a credential is only ever stored

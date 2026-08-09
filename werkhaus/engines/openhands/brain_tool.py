@@ -26,6 +26,7 @@ import logging
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
@@ -69,6 +70,12 @@ class ShiftContext:
     pending_url: str | None = None
     """A navigation that has been issued and not yet answered for. Promoted
     into ``browsed_urls`` only when the observation says it worked."""
+    search_cache: dict[str, Any] = field(default_factory=dict)
+    page_cache: dict[str, str] = field(default_factory=dict)
+    """Within one shift, the same query and the same page are asked for more
+    than once — a model rewords a query it has already run, and follows the
+    same link from two different articles. Both are free the second time."""
+
     claimed_task_ids: list[str] = field(default_factory=list)
     last_activity_emit: float = 0.0
     # The run-limit code the SDK reported, if any ("MaxBudgetReached", ...).
@@ -94,6 +101,27 @@ def unregister_shift(company_id: str) -> None:
 
 def get_shift_context(company_id: str) -> ShiftContext | None:
     return _CONTEXTS.get(company_id)
+
+
+def _workspace_relative(path: str, workspace: Path) -> str | None:
+    """The workspace-relative spelling of ``path``, or ``None`` if it points
+    outside the workspace.
+
+    Accepts both spellings an employee can plausibly produce: the plain name
+    the brain wants (``market-research.md``) and the absolute path her file
+    editor forced her to use to write it. Symlinks are resolved on both sides
+    so a workspace reached through one cannot be escaped through another.
+    """
+    candidate = Path(path.strip())
+    root = workspace.resolve()
+    absolute = candidate if candidate.is_absolute() else root / candidate
+    try:
+        resolved = absolute.resolve()
+    except OSError:
+        return None
+    if resolved == root or root not in resolved.parents:
+        return None
+    return str(resolved.relative_to(root))
 
 
 def normalize_url(url: str) -> str:
@@ -254,15 +282,23 @@ class BrainExecutor(ToolExecutor):
             return _error(f"record_artifact needs: {', '.join(missing)}.")
         assert action.path and action.title and action.summary and action.confidence
 
-        # The path the agent knows is workspace-relative; the brain records
-        # company-root-relative. Refuse anything that tries to leave.
-        if action.path.startswith("/") or ".." in action.path:
-            return _error("Use a plain path inside your workspace, like notes.md.")
-        workspace_file = ctx.brain.paths.workspace / action.path
+        # The brain records company-root-relative. The employee, meanwhile,
+        # holds a file editor that *requires* absolute paths — so she has just
+        # written the document at an absolute path and naturally files it under
+        # the same name. Accept either spelling and normalize, rather than
+        # making her translate between two tools that disagree; refusing the
+        # absolute form once cost a shift its only document.
+        relative = _workspace_relative(action.path, ctx.brain.paths.workspace)
+        if relative is None:
+            return _error(
+                f"{action.path} is outside your workspace. Write the document "
+                f"under {ctx.brain.paths.workspace} and record it from there."
+            )
+        workspace_file = ctx.brain.paths.workspace / relative
         if not workspace_file.is_file():
             return _error(
-                f"There's no file at {action.path}. Write the document first, "
-                "then record it."
+                f"There's no file at {workspace_file}. Write the document "
+                "first, then record it."
             )
 
         # The provenance cross-check: "sourced" means an URL you actually
@@ -289,12 +325,12 @@ class BrainExecutor(ToolExecutor):
             (
                 a
                 for a in ctx.brain.state.artifacts.values()
-                if a.path == f"workspace/{action.path}"
+                if a.path == f"workspace/{relative}"
             ),
             None,
         )
         artifact = ctx.brain.record_artifact(
-            path=f"workspace/{action.path}",
+            path=f"workspace/{relative}",
             title=action.title,
             summary=action.summary,
             kind=action.artifact_kind,
@@ -326,9 +362,11 @@ Operations:
 - complete_task(task_id): mark a claimed task finished.
 - add_task(title, detail?): record an open question or follow-up for the team.
 - record_artifact(path, title, summary, confidence, sources, artifact_kind?): file a
-  document you wrote in your workspace. confidence is "sourced" only if every
-  source URL is a page you actually opened this shift; otherwise use "inferred"
-  (reasoned from something sourced) or "assumption" (made up to keep going).
+  document you wrote in your workspace. path may be the plain name
+  (market-research.md) or the absolute path you gave the file editor; both mean
+  the same file. confidence is "sourced" only if every source URL is a page you
+  actually opened this shift; otherwise use "inferred" (reasoned from something
+  sourced) or "assumption" (made up to keep going).
 
 Work is not done until it is recorded here."""
 

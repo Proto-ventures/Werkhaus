@@ -16,6 +16,7 @@ from decimal import Decimal
 from openhands.sdk import LocalConversation
 
 from werkhaus.brain.digest import render_digest
+from werkhaus.brain.store import BrainStore
 from werkhaus.contract.events import ShiftEventKind as K
 from werkhaus.contract.models import (
     Progress,
@@ -41,7 +42,26 @@ logger = logging.getLogger(__name__)
 ROLE_ID = "researcher"
 ROLE_CAP = Decimal("1.50")
 MAX_ITERATIONS = 80
+RESEARCH_ITERATIONS = 64
+WRAP_UP_ITERATIONS = MAX_ITERATIONS - RESEARCH_ITERATIONS
+"""The turn budget, split. An employee cannot see her own turn counter, so
+"stop early enough to write it up" is not something she can be asked to do —
+it has to be done to her. The reserve is only ever spent if the research half
+ran out with nothing filed, so a shift that finishes normally costs no more
+than it did before."""
+
 WATCHDOG_SECONDS = 5.0
+
+WRAP_UP = (
+    "Stop researching — you are out of time for this shift, and you have not "
+    "filed anything yet.\n\n"
+    "Write up what you already have, now, in one pass: write the document, "
+    "record it, and finish. Label every claim honestly — inferred and "
+    "assumption are fine, and a short document with three sourced facts is "
+    "worth far more to the founder than another page of reading. Anything you "
+    "could not establish goes down as an open question with add_task, not as "
+    "a guess."
+)
 
 # The browser executor is one shared chromium for the whole process; two
 # companies browsing at once would interleave tabs. One real shift at a time
@@ -71,7 +91,6 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
     # The watchdog reads the meter every few seconds anyway; the closing phase
     # reuses that reading instead of racing the close running on another thread.
     run_cost = Decimal("0")
-    last_shown = ""
 
     try:
         bus.emit(K.SHIFT_STARTED, f"Shift {number} has started.", shift_id=sid)
@@ -118,6 +137,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             brain,
             number,
             browsing=engine.browsing and mcp.browsing_allowed,
+            chromium=getattr(engine, "chromium", True),
             mcp=mcp.servers or None,
             tool_filter=mcp.filter_regex if mcp.servers else None,
         )
@@ -127,7 +147,9 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             workspace=str(brain.paths.workspace),
             persistence_dir=str(brain.paths.conversations / f"{number:04d}"),
             callbacks=[Narrator(ctx)],
-            max_iteration_per_run=MAX_ITERATIONS,
+            # The research half of MAX_ITERATIONS. The rest is held in reserve
+            # and only ever spent on the write-up below.
+            max_iteration_per_run=RESEARCH_ITERATIONS,
             visualizer=None,
             max_budget_per_run=float(run_cap),
             delete_on_close=False,
@@ -135,45 +157,27 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
         company.conversation = conversation
 
         async with _WORK_SLOT:
-            conversation.send_message(_kickoff(shift.agenda, brain, number))
-            run = asyncio.ensure_future(asyncio.to_thread(conversation.run))
+            watch = _Watchdog(company, ctx, conversation)
             try:
-                while True:
-                    done, _ = await asyncio.wait({run}, timeout=WATCHDOG_SECONDS)
-                    # The estimate, not the raw accumulated cost: open-weight
-                    # models are routinely missing from the price map, and a
-                    # watchdog reading a permanent 0.0 guards nothing.
-                    run_cost = _run_cost_estimate(conversation)
-                    spent_now = company.spent + run_cost
-                    shown = str(cents(spent_now))
-                    # One event per actual change. A 30-minute shift used to
-                    # emit ~200 identical "spent 0.00" events.
-                    if shown != last_shown:
-                        last_shown = shown
-                        bus.emit(
-                            K.BUDGET_SPENT, "", shift_id=sid, role_id=ROLE_ID,
-                            payload={"spent": shown, "cap": str(company.cap)},
-                        )
-                    if done:
-                        await run  # surface ConversationRunError, if any
-                        break
-                    # Layer 4: the live watchdog. The per-run cap is checked
-                    # between steps; the company cap is checked here, on the
-                    # clock, and stops the whole shift.
-                    if spent_now >= company.cap:
-                        budget_hit = True
-                        ctx.stopped.set()
-                        conversation.pause()
-                        bus.emit(
-                            K.BUDGET_EXCEEDED,
-                            "The company has spent its whole budget, "
-                            "so everyone stopped.",
-                            shift_id=sid, role_id=ROLE_ID,
-                        )
-                        await run
-                        break
+                # The turn budget is split, not spent in one go. Researching
+                # until the very last turn is how a shift ends with a head full
+                # of findings and an empty workspace — which is the one outcome
+                # the founder cannot use.
+                conversation.send_message(_kickoff(shift.agenda, brain, number))
+                budget_hit = await watch.run()
+
+                if _out_of_time_empty_handed(ctx, brain, sid, budget_hit):
+                    # She didn't run out of budget or break; she ran out of
+                    # turns while still reading. Stop the research and buy the
+                    # write-up with the turns held back for exactly this.
+                    logger.info("shift %s ran out of research turns; wrapping up", sid)
+                    ctx.error_code = None
+                    conversation.max_iteration_per_run = WRAP_UP_ITERATIONS
+                    conversation.send_message(WRAP_UP)
+                    budget_hit = await watch.run()
             finally:
-                _close_when_done(run, conversation)
+                run_cost = watch.cost
+                watch.close()
 
         # ----------------------------------------------------------- closing
         status = _classify(conversation, ctx, budget_hit)
@@ -235,7 +239,7 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
             sid,
             status=status,
             summary=summary,
-            failure_reason=_failure_reason(status),
+            failure_reason=_failure_reason(status, ctx),
             cost=cost,
         )
         engine._write_shift_record(company, closed)
@@ -294,6 +298,93 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
 
 
 # ------------------------------------------------------------------- helpers
+class _Watchdog:
+    """Drives ``conversation.run()`` on a worker thread and reads the meter on
+    the clock while it works.
+
+    One instance spans every run of a shift, because the cost meter and the
+    "spent" event stream are per-shift, not per-run: a second run must keep
+    counting from where the first stopped, not start again at zero.
+    """
+
+    def __init__(
+        self,
+        company: OpenHandsCompany,
+        ctx: ShiftContext,
+        conversation: LocalConversation,
+    ) -> None:
+        self.company = company
+        self.ctx = ctx
+        self.conversation = conversation
+        self.cost = Decimal("0")
+        self._last_shown = ""
+        self._run: asyncio.Future | None = None
+
+    async def run(self) -> bool:
+        """Run to completion. Returns True if the company cap stopped it."""
+        company, ctx, conversation = self.company, self.ctx, self.conversation
+        sid = ctx.shift_id
+        self._run = asyncio.ensure_future(asyncio.to_thread(conversation.run))
+        while True:
+            done, _ = await asyncio.wait({self._run}, timeout=WATCHDOG_SECONDS)
+            # The estimate, not the raw accumulated cost: open-weight models
+            # are routinely missing from the price map, and a watchdog reading
+            # a permanent 0.0 guards nothing.
+            self.cost = _run_cost_estimate(conversation)
+            spent_now = company.spent + self.cost
+            shown = str(cents(spent_now))
+            # One event per actual change. A 30-minute shift used to emit ~200
+            # identical "spent 0.00" events.
+            if shown != self._last_shown:
+                self._last_shown = shown
+                company.bus.emit(
+                    K.BUDGET_SPENT, "", shift_id=sid, role_id=ROLE_ID,
+                    payload={"spent": shown, "cap": str(company.cap)},
+                )
+            if done:
+                await self._run  # surface ConversationRunError, if any
+                return False
+            # Layer 4: the live watchdog. The per-run cap is checked between
+            # steps; the company cap is checked here, on the clock, and stops
+            # the whole shift.
+            if spent_now >= company.cap:
+                ctx.stopped.set()
+                conversation.pause()
+                company.bus.emit(
+                    K.BUDGET_EXCEEDED,
+                    "The company has spent its whole budget, "
+                    "so everyone stopped.",
+                    shift_id=sid, role_id=ROLE_ID,
+                )
+                await self._run
+                return True
+
+    def close(self) -> None:
+        """Release the browser, whether or not a run ever got off the ground."""
+        if self._run is not None:
+            _close_when_done(self._run, self.conversation)
+        else:
+            threading.Thread(
+                target=_safe_close, args=(self.conversation,), daemon=True
+            ).start()
+
+
+def _out_of_time_empty_handed(
+    ctx: ShiftContext, brain: BrainStore, sid: ShiftId, budget_hit: bool
+) -> bool:
+    """Did this shift run out of turns while still holding nothing?
+
+    Only turn exhaustion earns a second run. A halt, a crash or a spent budget
+    all mean the shift is genuinely over, and spending more of the founder's
+    money to ask a stopped employee for a summary would be theatre.
+    """
+    if budget_hit or ctx.stopped.is_set() or ctx.error_code != "MaxIterationsReached":
+        return False
+    return not any(
+        a.produced_in_shift == sid for a in brain.state.artifacts.values()
+    )
+
+
 def _phase(
     company: OpenHandsCompany, sid: ShiftId, phase: ShiftPhase, text: str
 ) -> None:
@@ -362,10 +453,21 @@ def _classify(
     return ShiftStatus.COMPLETED
 
 
-def _failure_reason(status: ShiftStatus) -> str | None:
-    if status is ShiftStatus.FAILED:
-        return "Maya couldn't finish this one. The work so far is saved."
-    return None
+def _failure_reason(status: ShiftStatus, ctx: ShiftContext | None) -> str | None:
+    """Why it stopped, in words a founder can act on.
+
+    "Couldn't finish" tells them nothing: it reads the same whether the model
+    broke or the work was simply bigger than one shift. Running out of time is
+    the common case and the one with an obvious next move — run another shift.
+    """
+    if status is not ShiftStatus.FAILED:
+        return None
+    if ctx is not None and ctx.error_code == "MaxIterationsReached":
+        return (
+            "There was more to do than fits in one shift. The work so far is "
+            "saved — another shift picks up where this one stopped."
+        )
+    return "Maya couldn't finish this one. The work so far is saved."
 
 
 def _exception_reason(exc: BaseException) -> str:

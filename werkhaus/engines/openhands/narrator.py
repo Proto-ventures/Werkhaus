@@ -151,6 +151,24 @@ class Narrator:
                 self._activity(f"{ctx.name} is reading {self._last_domain}")
             return
 
+        if tool == "web_read" and event.action is not None:
+            # Provenance is settled in the executor, which sees the final URL
+            # after redirects. The narrator only has to say something true.
+            urls = list(getattr(event.action, "urls", None) or [])
+            domains = [d for d in (_domain(u) for u in urls) if d]
+            if domains:
+                self._last_domain = domains[0]
+                self._activity(
+                    f"{ctx.name} is reading {domains[0]}"
+                    if len(domains) == 1
+                    else f"{ctx.name} is reading {len(domains)} pages"
+                )
+            return
+
+        if tool == "web_search" and event.action is not None:
+            self._activity(f"{ctx.name} is looking for sources.")
+            return
+
         if tool in BROWSER_TOOLS:
             if self._last_domain:
                 self._activity(f"{ctx.name} is reading {self._last_domain}")

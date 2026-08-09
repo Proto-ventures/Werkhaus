@@ -26,6 +26,21 @@ These three are load-bearing. Breaking any of them quietly undoes the design.
 3. **`workspace=` is always a Workspace object, never a `str` path.** The SDK's
    `Conversation.__new__` dispatches on workspace type, so sandboxing agents in
    Docker later stays a config change instead of a rewrite.
+4. **A model repeats its own last tool call more reliably than it follows an
+   instruction.** Measured across five models on the same search results: every
+   one searched *again* rather than opening a page — and they kept calling
+   `web_search` even when it had been removed from the tool list and only
+   `web_read` was offered. So `web_search` reads its own top results in the
+   same call. Don't design a two-step tool flow and expect the prompt to carry
+   it; make the step the model will repeat the one that does the work.
+5. **Every path handed to the SDK is absolute.** `file_editor` rejects relative
+   paths outright, and the only place it tells an employee where her workspace
+   *is* is by echoing the conversation's working directory into its own tool
+   description. A relative one there (`WERKHAUS_DATA=./data`, the default) reads
+   as `data/co_x/workspace`; she prepends a slash to satisfy the tool, and every
+   write lands on `/data/...`, which does not exist. That cost one shift its
+   whole turn budget and produced nothing. `CompanyPaths` resolves at
+   construction; `tests/sdk_seams` pins it.
 
 ## Layout
 

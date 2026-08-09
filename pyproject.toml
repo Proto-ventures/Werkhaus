@@ -16,6 +16,12 @@ dependencies = [
     # Brain / stub
     "pyyaml>=6.0",
     "filelock>=3.20.1",
+    # Reading the web without a browser. All three arrive transitively via the
+    # SDK today; declared because werkhaus/engines/openhands/web.py imports them
+    # directly, and a transitive dep is not a promise.
+    "httpx>=0.28",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
 ]
 
 [project.scripts]

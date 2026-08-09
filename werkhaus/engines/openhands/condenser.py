@@ -48,11 +48,19 @@ from pydantic import Field
 
 logger = logging.getLogger(__name__)
 
-KEEP_LAST = 10
+KEEP_LAST = 4
 """How many recent observations stay in full.
 
-Ten is the paper's window. It is enough to hold the page currently being read
-plus the few before it, and small enough that a long shift stops growing.
+The paper's window is ten, measured on SWE-bench, where an observation is a
+file or a test log. Ours is up to six web pages at once — one ``web_read``
+reply reached 40KB — so ten of them is most of a shift's reading riding in
+every prompt. Measured on a real shift: the fortieth model call carried 54,838
+tokens against the fifth call's 536, and observations were the bulk of the
+difference.
+
+Four still holds what she is reasoning about — the pages she just opened —
+while cutting what the *next* call has to re-send. The record of what was
+tried is unaffected: actions are never masked, only the replies.
 """
 
 NO_LLM_RESPONSE = "werkhaus-masking-no-llm-call"

@@ -171,3 +171,84 @@ async def test_balanced_never_chains(tmp_path) -> None:
         assert (await engine.get_company(company.id)).shift_count == 1
     finally:
         await engine.aclose()
+
+
+async def test_a_shift_that_runs_out_of_turns_still_files_something(tmp_path) -> None:
+    """The reserve that makes rule 7 real.
+
+    An employee cannot see her own turn counter, so "stop early enough to write
+    it up" is not something she can be asked to do — and a shift that reads for
+    eighty turns and files nothing is the one outcome a founder cannot use. The
+    turn budget is split: research runs out first, and the turns held back buy
+    the write-up.
+    """
+    import json
+
+    from openhands.sdk import Message, TextContent
+    from openhands.sdk.llm.message import MessageToolCall
+    from openhands.sdk.testing import TestLLM
+
+    from tests.contract.conftest import RESEARCH
+    from werkhaus.engines.openhands.shift import RESEARCH_ITERATIONS
+
+    def call(i: int, name: str, args: dict, say: str) -> Message:
+        return Message(
+            role="assistant",
+            content=[TextContent(text=say)],
+            tool_calls=[
+                MessageToolCall(
+                    id=f"call_{i}",
+                    name=name,
+                    arguments=json.dumps(args),
+                    origin="completion",
+                )
+            ],
+        )
+
+    # Research that never converges. Each turn is distinct so this reads as an
+    # employee still working, not as the SDK's stuck detector's idea of a loop.
+    turns = [
+        call(i, "werkhaus_brain", {"op": "add_task", "title": f"Open question {i}"},
+             "Still looking.")
+        for i in range(RESEARCH_ITERATIONS + 1)
+    ]
+    # Then, and only when told the research time is gone, the document.
+    turns.append(
+        call(
+            9000,
+            "werkhaus_brain",
+            {
+                "op": "record_artifact",
+                "path": RESEARCH,
+                "title": "What I found before time ran out",
+                "summary": "Partial, labelled honestly.",
+                "confidence": "inferred",
+                "sources": [],
+            },
+            "Writing up what I have.",
+        )
+    )
+    turns.append(
+        Message(role="assistant", content=[TextContent(text="Filed what I had.")])
+    )
+
+    engine = await started(tmp_path, llm=lambda usage_id: TestLLM.from_messages(
+        turns, usage_id=usage_id
+    ))
+    try:
+        company = await engine.create_company("A booking tool for mobile dog groomers")
+        prepare_workspace(tmp_path, company.id)
+        await engine.start_shift(company.id)
+        await wait_idle(engine, company.id)
+
+        # The shift ran out of turns — and still came back with a document.
+        artifacts = await engine.list_artifacts(company.id)
+        assert [a.title for a in artifacts] == ["What I found before time ran out"]
+
+        # Which makes it a shift that worked, not one that failed: the turn
+        # limit was reached, but the founder still got the thing they were
+        # promised.
+        shift = (await engine.list_shifts(company.id))[0]
+        assert shift.status.value == "completed", shift.failure_reason
+    finally:
+        await engine.aclose()
