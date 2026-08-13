@@ -1,14 +1,20 @@
 /**
- * The Bauhaus vocabulary.
+ * The mark vocabulary.
  *
- * Circle, square, triangle — used the way the school used them: assigned to
- * meanings and then applied consistently, not scattered for decoration. Here a
- * shape carries state, so the interface still reads in greyscale, in print, and
- * to someone who can't separate the red from the yellow.
+ * Four shapes, each assigned a meaning and then applied consistently rather
+ * than scattered for decoration. A shape carries the state, so the interface
+ * still reads in greyscale, in print, and to someone who cannot separate the
+ * blue from the amber.
  *
- *   circle    working, live, evidenced
- *   square    idle, neutral, at rest
- *   triangle  flagged — a warning, an objection, something that needs you
+ *   square    a fact, at rest — filled in the evidence blue when sourced,
+ *             plain ink when merely inferred
+ *   ring      hollow: an assumption, something nobody has checked
+ *   circle    working, live
+ *   triangle  flagged — an objection, something that needs you
+ *
+ * The hollow/filled distinction is the load-bearing one. A number leaving this
+ * app — copied into a deck, printed, screenshotted — has to carry whether it
+ * was verified, and colour alone does not survive any of those journeys.
  */
 
 import { cn } from '@/lib/utils'
@@ -57,16 +63,19 @@ export function Mark({
   )
 }
 
-/** The logo is the three marks in their fixed order, then the name. */
+/**
+ * The logo.
+ *
+ * A serial, the way the reference numbers its plates, then the name. Werkhaus
+ * files things — shifts, documents, objections — and a filing number is the
+ * truest possible mark for it. Set in the pixel face so it reads as a stamped
+ * identifier rather than a piece of branding.
+ */
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('flex items-center gap-2', className)}>
-      <span className="flex items-center gap-[3px]" aria-hidden>
-        <span className="mark mark-circle bg-blue size-2.5" />
-        <span className="mark mark-square bg-yellow size-2.5" />
-        <span className="mark mark-triangle text-red" />
-      </span>
-      <span className="font-display text-[1.0625rem] font-semibold lowercase tracking-[0.02em]">
+    <span className={cn('flex items-baseline gap-2', className)}>
+      <span aria-hidden className="mark mark-square bg-blue translate-y-[-1px]" />
+      <span className="font-mono text-[0.9375rem] tracking-[0.16em] uppercase">
         werkhaus
       </span>
     </span>

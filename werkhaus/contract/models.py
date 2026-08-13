@@ -278,6 +278,61 @@ class LedgerEntry(Base):
     at: datetime
 
 
+# ---------------------------------------------------------------------- finances
+class Assumption(Base):
+    """One number the business rests on, and where that number came from.
+
+    Same three marks as an artifact, for the same reason: a founder cannot tell
+    a price read off a rival's pricing page from one somebody made up, and by
+    the time the difference matters they have already put it in a deck.
+    """
+
+    key: str  # "price" — what the projection multiplies, see MoneyModel
+    label: str  # "what one customer pays a month"
+    value: Decimal
+    unit: Literal["money", "count", "rate"]
+    confidence: Confidence
+    note: str = ""  # where it came from, or why nobody has been asked yet
+
+
+class MoneyModel(Base):
+    """What the business would earn, if every assumption in it holds.
+
+    **There is no revenue field here, on purpose.** A company with no customers
+    has no revenue, and a stored revenue number is indistinguishable from a
+    remembered one six weeks later. What is stored is the assumptions; the
+    projection is arithmetic done at the point of display, from those
+    assumptions, every time. So nobody — no employee, no engine, no future
+    version of this file — can record money that did not arrive.
+
+    Real money, when there is any, is a different kind and arrives from the
+    payment integration as a fact with a date on it. It will not be written
+    here.
+
+    The keys the projection understands:
+
+    ``price``           what one customer pays a month
+    ``customers``       customers at the end of month one
+    ``new_customers``   how many arrive each month after that
+    ``churn``           the share of them who leave each month
+    ``variable_cost``   what serving one customer costs a month
+    ``fixed_cost``      what the business costs a month before any customers
+
+    A missing key is not a zero. ``churn`` absent means nobody modelled churn,
+    which is a hole in the model and is displayed as one — the projection says
+    so rather than quietly assuming nobody ever leaves.
+    """
+
+    company_id: CompanyId
+    shift_id: ShiftId | None = None
+    role_id: RoleId | None = None  # who filed it
+    currency: str = "EUR"
+    horizon_months: int = 12
+    assumptions: list[Assumption] = Field(default_factory=list)
+    artifact_id: ArtifactId | None = None  # the document it was reasoned in
+    filed_at: datetime
+
+
 # ------------------------------------------------------------------------- share
 class ShareOptions(Base):
     include_shifts: bool = True

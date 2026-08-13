@@ -39,11 +39,13 @@ from werkhaus.contract.integrations import ProvisionedResource
 from werkhaus.contract.models import (
     Artifact,
     ArtifactKind,
+    Assumption,
     AttentionRequest,
     Charter,
     Confidence,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Objection,
     Progress,
     Severity,
@@ -82,6 +84,9 @@ class CompanyBrain:
         self.attention: dict[str, AttentionRequest] = {}
         self.shifts: dict[str, Shift] = {}
         self.ledger: list[LedgerEntry] = []
+        # What the business would earn if its assumptions hold. Never what
+        # it earned: see MoneyModel on why there is no revenue field.
+        self.money: MoneyModel | None = None
         self.metrics: dict[str, Any] = {}
         self.spent = Decimal("0")
         self.notes: list[str] = []
@@ -714,6 +719,78 @@ class BrainStore:
             )
         )
         self.state.spent += amount
+
+    # ------------------------------------------------------------ finances
+    def record_money_model(
+        self,
+        assumptions: list[dict[str, Any]],
+        *,
+        role_id: str | None,
+        shift_id: str | None,
+        currency: str = "EUR",
+        horizon_months: int = 12,
+        artifact_id: str | None = None,
+    ) -> MoneyModel:
+        """File what the business would earn, as the numbers it rests on.
+
+        Whole-model replacement rather than a patch: half a money model from
+        last shift merged with half from this one is a model nobody wrote and
+        nobody can defend. The old one stays in the log, so "what did we think
+        in shift 3" is still answerable.
+        """
+        clean: list[dict[str, Any]] = []
+        for a in assumptions:
+            confidence = str(a.get("confidence", "assumption"))
+            if confidence not in ("sourced", "inferred", "assumption"):
+                raise ValueError(f"{a.get('key')}: {confidence} is not a mark.")
+            unit = str(a.get("unit", "money"))
+            if unit not in ("money", "count", "rate"):
+                raise ValueError(f"{a.get('key')}: {unit} is not a unit.")
+            clean.append(
+                {
+                    "key": str(a["key"]),
+                    "label": str(a.get("label", a["key"])),
+                    "value": str(Decimal(str(a["value"]))),
+                    "unit": unit,
+                    "confidence": confidence,
+                    "note": str(a.get("note", "")),
+                }
+            )
+        self._append(
+            "record_money_model",
+            {
+                "assumptions": clean,
+                "currency": currency,
+                "horizon_months": int(horizon_months),
+                "artifact_id": artifact_id,
+                "shift_id": shift_id,
+            },
+            role_id,
+        )
+        assert self.state.money is not None
+        return self.state.money
+
+    def _on_record_money_model(self, data: dict, actor: str | None, at: str) -> None:
+        self.state.money = MoneyModel(
+            company_id=self.company_id,
+            shift_id=data.get("shift_id"),
+            role_id=actor,
+            currency=data.get("currency", "EUR"),
+            horizon_months=data.get("horizon_months", 12),
+            assumptions=[
+                Assumption(
+                    key=a["key"],
+                    label=a["label"],
+                    value=Decimal(a["value"]),
+                    unit=a["unit"],
+                    confidence=a["confidence"],
+                    note=a.get("note", ""),
+                )
+                for a in data.get("assumptions", [])
+            ],
+            artifact_id=data.get("artifact_id"),
+            filed_at=datetime.fromisoformat(at),
+        )
 
     # ----------------------------------------------------------- attention
     def ask(

@@ -1,56 +1,70 @@
 @import 'tailwindcss';
 
-/* Jost is an open Futura-alike — the Bauhaus letterform, and the reason the
-   wordmark is set lowercase (Bayer's universal alphabet had no capitals).
-   Plex Mono keeps the early-web chrome: ids, money, timestamps, tables.
-   Plex Sans carries running prose, because geometric sans is hard to read long. */
-@import '@fontsource/jost/400.css';
-@import '@fontsource/jost/500.css';
-@import '@fontsource/jost/600.css';
-@import '@fontsource/jost/700.css';
+/* Newsreader carries prose and headings: an editorial serif, comfortable
+   justified and at length, which a geometric sans is not. Departure Mono
+   carries anything measured — ids, money, timestamps, labels, buttons — and is
+   a pixel face, so a number always looks like a reading off an instrument
+   rather than a sentence. IBM Plex Sans survives for the studio's dense
+   controls only, where a serif would be tiring to sit in.
+   Departure Mono is SIL OFL 1.1; the licence ships beside the file. */
+@import '@fontsource-variable/newsreader';
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/500.css';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
 
-/* Light only. Ink on paper, hard rules, flat colour — a dark variant would be
-   a different design, not this one at night. */
+@font-face {
+  font-family: 'Departure Mono';
+  src: url('./assets/fonts/DepartureMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ink on paper, hard rules, flat colour. This is the design; the .dark block
+   below is the same one after dark, and light stays the default. */
 :root {
   --radius: 0rem;
 
-  --paper: #f3f2f0;
+  --paper: #fbfbfb;
   --panel: #ffffff;
-  --ink: #121212;
-  --ink-soft: #5a5a5a;
-  --ink-faint: #8e8e8e;
-  --rule: #121212;
-  --rule-soft: #d6d4d0;
+  --ink: #262626;
+  --ink-soft: #555f6a;
+  /* Every text colour clears 4.5:1 on both grounds. AA draws that line at 18px
+     and almost nothing here is that big, so the large-text exemption never
+     applies to us and it would be dishonest to lean on it. */
+  --ink-faint: #6a737d;
+  --rule: #262626;
+  --rule-soft: #e4e4e4;
 
-  /* The triad, used functionally rather than decoratively. Red is reserved for
-     stop and fatal, which is what makes it mean anything when it appears. */
-  --red: #de3b26;
-  --yellow: #f5c400;
-  --blue: #1740c4;
+  /* One accent, doing all the work, the way the reference does. Blue is
+     evidence: it appears on a sourced claim and almost nowhere else, which is
+     what keeps it meaning something. */
+  --blue: #0d3dff;
+  --grid: #e9edfc;
+  --line: #a0b3ff;
+  --red: #c02718;
+  /* Solved rather than picked: ink on this reaches 4.56:1 for the badge that
+     sets text on it, and it still holds 3.21:1 as a mark against paper. */
+  --yellow: #c08000;
 
   --link: var(--blue);
   --link-visited: #6b2fa0;
 
-  /* Provenance maps straight onto the triad: evidence is blue, a guess is
-     yellow, and reasoning in between is plain black — no claim, no colour. */
+  /* Provenance needs three states and only one hue. Sourced takes the accent.
+     Inferred is plain ink: no claim, no colour. An assumption is hollow rather
+     than coloured, so the three are still tellable apart in greyscale, in
+     print, and in a screenshot someone pastes into a deck. */
   --sourced: var(--blue);
-  --inferred: #121212;
-  --assumption: #8a6d00;
+  --inferred: var(--ink);
+  --assumption: #8a6410;
   --fatal: var(--red);
-  --serious: #8a6d00;
-  --noted: #5a5a5a;
+  --serious: #8a6410;
+  --noted: var(--ink-soft);
 
-  /* The painting palette, median-cut sampled from the two canvases on the
-     landing page (Van Gogh 1889, Millet 1868). Used only for the collage
-     planes there, so the shapes are the paintings' own colours. */
+  /* Median-cut from the day canvases: Van Gogh, Wheat Field with Cypresses
+     (1889) and Millet, Dandelions (1867-68). */
   --wheat-gold: #a88837;
   --vg-sky: #8eabbc;
   --cypress: #1c2d1f;
-  --olive: #63632c;
   --meadow: #4e5c46;
   --sage: #727a61;
 
@@ -62,15 +76,88 @@
   --popover: var(--panel);
   --popover-foreground: var(--ink);
   --primary: var(--ink);
-  --primary-foreground: #ffffff;
-  --secondary: #e8e6e2;
+  --primary-foreground: var(--paper);
+  --secondary: #eef0f3;
   --secondary-foreground: var(--ink);
-  --muted: #e8e6e2;
+  --muted: #eef0f3;
   --muted-foreground: var(--ink-soft);
-  --accent: #e8e6e2;
+  --accent: #eef0f3;
   --accent-foreground: var(--ink);
   --destructive: var(--red);
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: var(--paper);
+  --border: var(--rule-soft);
+  --input: var(--rule);
+  --ring: var(--blue);
+}
+
+/* ---------------------------------------------------------------------------
+   The same design after dark.
+
+   It works by redefining tokens only, which `@theme inline` makes possible: it
+   resolves them at the point of use, so every `text-ink`, `border-rule` and
+   `bg-panel` already written follows without a single `dark:` utility, and a
+   component author cannot forget to handle it.
+
+   The logic of the light theme is kept rather than inverted. Panel still sits
+   above paper. The heavy rule is still what structure is drawn with. Blue is
+   still evidence and appears almost nowhere else. Every text colour clears
+   4.5:1 against both grounds, same as the light one.
+   --------------------------------------------------------------------------- */
+.dark {
+  /* The same two painters, the same place, a different hour: Van Gogh's
+     Starry Night (June 1889, the view from his asylum window at Saint-Remy)
+     and Millet's Starry Night (c.1850-65), which Van Gogh may have seen in
+     Paris and whose maker he revered. The toggle is a change of hour. */
+  --paper: #10141f;
+  --panel: #182031;
+  --ink: #e4e7ee;
+  --ink-soft: #b3bccb;
+  --ink-faint: #98a3b4;
+  --rule: #98a3b4;
+  --rule-soft: #2e394d;
+
+  --blue: #7ea2ff;
+  --grid: #1c2740;
+  --line: #3d5680;
+  --red: #ff8b7d;
+  --yellow: #e8c877;
+
+  --link: var(--blue);
+  --link-visited: #c3a0f0;
+
+  --sourced: var(--blue);
+  --inferred: var(--ink);
+  --assumption: #e0b25c;
+  --fatal: var(--red);
+  --serious: #e0b25c;
+  --noted: var(--ink-soft);
+
+  /* Median-cut from the night canvases themselves, not dimmed from the day
+     ones: Van Gogh's Starry Night gives the sky and its blues, Millet's the
+     darker earth. The planes are always the actual pigment of whichever
+     paintings are on screen. */
+  --wheat-gold: #9ea88f;
+  --vg-sky: #536d8d;
+  --cypress: #1e1c17;
+  --meadow: #2d3f69;
+  --sage: #4f5a4f;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: #222d42;
+  --secondary-foreground: var(--ink);
+  --muted: #222d42;
+  --muted-foreground: var(--ink-soft);
+  --accent: #222d42;
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --destructive-foreground: var(--paper);
   --border: var(--rule-soft);
   --input: var(--rule);
   --ring: var(--blue);
@@ -82,9 +169,11 @@
   --radius-lg: 0rem;
   --radius-xl: 0rem;
 
-  --font-display: 'Jost', ui-sans-serif, system-ui, sans-serif;
-  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
+  --font-display: 'Newsreader Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Newsreader Variable', ui-serif, Georgia, serif;
+  --font-mono: 'Departure Mono', ui-monospace, 'Courier New', monospace;
+  /* The dense-control escape hatch, used only in the studio. */
+  --font-ui: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
   --color-paper: var(--paper);
   --color-panel: var(--panel);
@@ -96,6 +185,8 @@
   --color-red: var(--red);
   --color-yellow: var(--yellow);
   --color-blue: var(--blue);
+  --color-grid: var(--grid);
+  --color-line: var(--line);
   --color-link: var(--link);
 
   --color-background: var(--background);
@@ -128,7 +219,6 @@
   --color-wheat-gold: var(--wheat-gold);
   --color-vg-sky: var(--vg-sky);
   --color-cypress: var(--cypress);
-  --color-olive: var(--olive);
   --color-meadow: var(--meadow);
   --color-sage: var(--sage);
 }
@@ -156,31 +246,50 @@
 }
 
 @layer components {
-  /* A bordered box. Heavy black rule, no rounding, no shadow — the wall the
-     whole interface is built out of. */
+  /* A sheet. Hairline edge, no shadow, no rounding: the reference builds
+     everything out of thin rules and whitespace, and a border that shouts is
+     a border you stop seeing. */
   .panel {
-    @apply bg-panel border-rule border;
+    @apply bg-panel border-rule-soft border;
   }
 
-  /* Geometric sans, tight, for anything that is a heading or a name. */
+  /* Prose voice. The serif does the work; weight is restrained because
+     Newsreader at 600 already reads as emphatic. */
   .display {
-    @apply font-display font-semibold tracking-[-0.015em];
+    @apply font-display font-semibold tracking-[-0.011em];
   }
 
-  /* Stencilled label. Lowercase, because Bayer's universal alphabet was. */
+  /* A label on an instrument. Departure Mono, uppercase, wide — this is the
+     one place caps are right, because it is a reading rather than a sentence. */
   .eyebrow {
-    @apply font-display text-[0.75rem] font-medium tracking-[0.09em] lowercase;
+    @apply font-mono text-[0.6875rem] tracking-[0.12em] uppercase;
   }
 
   .numeric {
     @apply font-mono tabular-nums;
   }
 
-  /* Flat, hard-edged, no shadow. Bauhaus does not do bevels. */
+  /* A spec-sheet row: label left, value hard right, a rule between them doing
+     the work a dotted leader does on paper. The studio is full of measured
+     pairs and they should all look like readings off the same instrument. */
+  .spec {
+    @apply border-rule-soft flex items-baseline justify-between gap-4 border-b
+      py-1.5 font-mono text-[0.75rem];
+  }
+  .spec > :first-child {
+    @apply text-ink-faint tracking-[0.08em] uppercase;
+  }
+  .spec > :last-child {
+    @apply text-ink tabular-nums;
+  }
+
+  /* Buttons are labels on a control, so they are mono and uppercase. Flat,
+     hairline, square. whitespace-nowrap because a label broken across two
+     lines reads as a button that failed to render. */
   .btn {
-    @apply border-rule bg-panel text-ink font-display inline-flex items-center
-      justify-center gap-2 border px-3.5 py-1.5 text-[0.875rem] font-medium
-      lowercase transition-colors;
+    @apply border-rule text-ink font-mono inline-flex items-center justify-center
+      gap-2 border bg-transparent px-4 py-2 text-[0.75rem] tracking-[0.08em]
+      uppercase whitespace-nowrap transition-colors;
     @apply focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none;
   }
   .btn:hover:not(:disabled) {
@@ -190,7 +299,7 @@
     @apply text-ink-faint border-rule-soft cursor-not-allowed;
   }
   .btn-primary {
-    @apply bg-ink text-paper;
+    @apply bg-ink text-paper border-ink;
   }
   .btn-primary:hover:not(:disabled) {
     @apply bg-blue border-blue text-white;
@@ -204,9 +313,14 @@
   }
 
   /* ---------------------------------------------------------------------
-     The primitives. Circle, square, triangle — the Bauhaus vocabulary, doing
-     actual work rather than decorating: a shape tells you a state, and it
-     still reads when the colour doesn't (printed, colour-blind, greyscale).
+     Provenance marks.
+
+     Three states, one hue. Sourced is a filled square in the evidence blue.
+     Inferred is the same square in plain ink: no claim, no colour. An
+     assumption is *hollow* — the ring — so the three stay tellable apart in
+     greyscale, in print, and in a screenshot pasted into a deck. That last
+     case is the one that matters: a number leaving this app without its mark
+     is the most expensive failure the product has.
      --------------------------------------------------------------------- */
   .mark {
     @apply inline-block size-2.5 shrink-0 align-middle;
@@ -228,6 +342,16 @@
   .mark-ring {
     @apply rounded-full border-2 bg-transparent;
   }
+
+  /* Graph paper. The ground a technical plate is drawn on, and the only
+     texture in the product. */
+  .plate {
+    background-color: var(--panel);
+    background-image:
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 1.25rem 1.25rem;
+  }
 }
 
 /* The one motion in the product: a working employee breathes. */
@@ -244,7 +368,23 @@
   animation: werk-pulse 2.6s ease-in-out infinite;
 }
 
+/* The theme swap, as one crossfade. The default view-transition animation is
+   already a cross-dissolve; all that is needed is a duration short enough to
+   read as a change of light rather than a page load. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  /* The View Transition API does not honour this preference on its own, and
+     the toggle already skips the transition entirely — this covers any other
+     route into one. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
   .pulse {
     animation: none;
   }
@@ -253,5 +393,46 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* A shift report is meant to be a document the founder could show someone
+   tomorrow, and some of them will print it. Unstyled, that means a page of
+   paintings in full bleed and hairlines too pale to survive a laser printer.
+   Colour still carries meaning here, so it is kept; what goes is the decoration
+   and anything that only makes sense on a screen. */
+@media print {
+  /* The collage is aria-hidden for the same reason it is unprintable: it is
+     not information. */
+  [aria-hidden='true'] img,
+  [aria-hidden='true'] {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Hairlines are chosen to be quiet on a backlit screen. On paper they
+     disappear, so the internal dividers borrow the heavy rule. */
+  * {
+    border-color: var(--ink) !important;
+  }
+
+  /* A panel is a document. Breaking one across two sheets loses the thing the
+     border was drawing around. */
+  .panel {
+    break-inside: avoid;
+  }
+
+  /* A link a reader cannot follow should at least say where it went. */
+  a.link::after {
+    content: ' (' attr(href) ')';
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+  }
+
+  .btn {
+    display: none;
   }
 }

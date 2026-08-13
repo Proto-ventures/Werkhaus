@@ -150,7 +150,7 @@ export function ConnectWalkthrough({
                 setValues({ ...values, [field.name]: e.target.value })
               }
               className={cn(
-                'border-rule-soft mt-1 block w-full border px-3 py-2 font-mono text-[0.875rem] outline-none',
+                'border-rule-soft mt-1 block w-full border px-3 py-2 font-mono text-[0.875rem] outline-none focus-visible:ring-ring focus-visible:ring-2',
                 badShape && 'border-red',
               )}
             />

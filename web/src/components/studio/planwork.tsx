@@ -12,6 +12,7 @@ import type {
   Company,
   Decision,
   LedgerEntry,
+  MoneyModel,
   Objection,
   Shift,
   VaultItem,
@@ -28,7 +29,9 @@ import {
 } from '@/components/dash'
 import { Brain } from '@/components/studio/brain'
 import { AUTONOMY_OPTIONS, allowed } from '@/components/studio/rail'
+import { MoneyPlate } from '@/components/money'
 import { ArtifactReader } from '@/components/work'
+import type { Assumption } from '@/lib/finance'
 import { money } from '@/lib/display'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +40,7 @@ export type PlanSection =
   | 'documents'
   | 'vera'
   | 'decisions'
+  | 'finances'
   | 'money'
   | 'history'
   | 'settings'
@@ -46,7 +50,12 @@ const SECTIONS: { key: PlanSection; label: string }[] = [
   { key: 'documents', label: 'documents' },
   { key: 'vera', label: 'what vera flagged' },
   { key: 'decisions', label: 'decisions' },
-  { key: 'money', label: 'money' },
+  // Two kinds of money, kept apart on purpose. "finances" is the business's
+  // own — what it would earn, from the assumptions somebody modelled. "what
+  // this costs" is ours: dollars that have actually left, against the cap.
+  // A founder who confuses the two has been sold the oldest lie in startups.
+  { key: 'finances', label: 'finances' },
+  { key: 'money', label: 'what this costs' },
   { key: 'history', label: 'past shifts' },
   { key: 'settings', label: 'settings & keys' },
 ]
@@ -58,6 +67,7 @@ export function PlanWork({
   decisions,
   shifts,
   ledger,
+  finances,
   busy,
   section,
   onSection,
@@ -74,6 +84,7 @@ export function PlanWork({
   decisions: Decision[]
   shifts: Shift[]
   ledger: LedgerEntry[]
+  finances: MoneyModel | null
   busy: boolean
   section: PlanSection
   onSection: (s: PlanSection) => void
@@ -98,6 +109,7 @@ export function PlanWork({
     documents: String(artifacts.length),
     vera: serious ? `${objections.length} · ${serious} serious` : String(objections.length),
     decisions: String(decisions.length),
+    finances: finances ? `${finances.assumptions.length} assumptions` : 'not yet',
     money: money(company.budget.spent),
     history: String(shifts.length),
     settings: '',
@@ -198,6 +210,15 @@ export function PlanWork({
             </Pane>
           )}
 
+          {section === 'finances' && (
+            <Pane
+              title="Finances"
+              blurb="What the business would earn, if every assumption under it holds. Not money that has arrived — nothing here is a receipt."
+            >
+              <FinancesPane finances={finances} />
+            </Pane>
+          )}
+
           {section === 'money' && (
             <Pane
               title="Money"
@@ -235,6 +256,61 @@ export function PlanWork({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The business's own money, which is not the money the header meter shows.
+ *
+ * The header meter is what running this company has cost *us* — dollars that
+ * have left, against a cap. This is what the company would earn if the
+ * assumptions under it hold, in the currency it would earn it in. Keeping the
+ * two on separate screens is not tidiness: a founder who reads a projection as
+ * a bank balance has been sold the oldest lie in startups, and this product
+ * exists to make that specific mistake harder.
+ *
+ * Empty until an employee files one. "Nobody has modelled this" and "we
+ * modelled it and it comes to nothing" are different facts and look different.
+ */
+function FinancesPane({ finances }: { finances: MoneyModel | null }) {
+  if (!finances || finances.assumptions.length === 0) {
+    return (
+      <div className="px-5 py-10 text-center">
+        <span className="border-ink-faint mx-auto block size-3 rounded-full border-2" aria-hidden />
+        <p className="display mt-3 text-base">Nobody has modelled the money yet.</p>
+        <p className="text-ink-soft mx-auto mt-2 max-w-sm text-[0.8125rem] leading-relaxed">
+          Nia builds the one-page model and labels every guess in it. When she
+          files one, it appears here as the numbers it rests on — a price, who
+          arrives, who leaves, what serving them costs — and the projection is
+          worked out from those, in front of you.
+        </p>
+      </div>
+    )
+  }
+
+  // The wire type carries decimals as strings, because a decimal that has been
+  // through a float is no longer the number anybody wrote down.
+  const assumptions: Assumption[] = finances.assumptions.map((a) => ({
+    key: a.key,
+    label: a.label,
+    value: Number(a.value),
+    unit: a.unit,
+    confidence: a.confidence,
+    note: a.note ?? undefined,
+  }))
+
+  return (
+    <div className="p-4">
+      <MoneyPlate
+        assumptions={assumptions}
+        currency={finances.currency ?? 'EUR'}
+        horizonMonths={finances.horizon_months ?? 12}
+        className="border-0"
+      />
+      <p className="text-ink-faint mt-3 font-mono text-[0.6875rem] leading-relaxed">
+        filed by {finances.role_id ?? 'the team'} · a projection, not a receipt
+      </p>
     </div>
   )
 }

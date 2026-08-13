@@ -6370,8 +6370,11 @@ name = "werkhaus"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "beautifulsoup4" },
     { name = "fastapi" },
     { name = "filelock" },
+    { name = "httpx" },
+    { name = "lxml" },
     { name = "openhands-sdk" },
     { name = "openhands-tools" },
     { name = "pydantic" },
@@ -6390,8 +6393,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "filelock", specifier = ">=3.20.1" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "lxml", specifier = ">=5.0" },
     { name = "openhands-sdk", specifier = "==1.41.0" },
     { name = "openhands-tools", specifier = "==1.41.0" },
     { name = "pydantic", specifier = ">=2.12.5" },

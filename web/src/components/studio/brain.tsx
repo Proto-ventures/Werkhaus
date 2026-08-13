@@ -198,7 +198,7 @@ export function Brain({ cid }: { cid: string }) {
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   spellCheck={false}
-                  className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+                  className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
                 />
               </label>
 
@@ -210,7 +210,7 @@ export function Brain({ cid }: { cid: string }) {
                     onChange={(e) => setBaseUrl(e.target.value)}
                     placeholder="https://api.swarms.world/v1"
                     spellCheck={false}
-                    className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+                    className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
                   />
                   <span className="text-ink-faint mt-1 block text-[0.75rem] leading-snug">
                     Usually ends in /v1 — the part where the service's API
@@ -227,7 +227,7 @@ export function Brain({ cid }: { cid: string }) {
                   onChange={(e) => setKey(e.target.value)}
                   autoComplete="off"
                   spellCheck={false}
-                  className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+                  className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
                 />
                 {provider?.key_hint && (
                   <span className="text-ink-faint mt-1 block text-[0.75rem]">

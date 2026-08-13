@@ -81,6 +81,7 @@ from werkhaus.contract.models import (
     CompanyStatus,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Objection,
     PublicSnapshot,
     Role,
@@ -520,6 +521,9 @@ class BaseEngine(Engine):
 
     async def list_ledger(self, cid: CompanyId, limit: int = 200) -> list[LedgerEntry]:
         return list(reversed(self._get(cid).brain.state.ledger))[:limit]
+
+    async def get_money_model(self, cid: CompanyId) -> MoneyModel | None:
+        return self._get(cid).brain.state.money
 
     # --------------------------------------------------------------- user input
     async def answer_attention(

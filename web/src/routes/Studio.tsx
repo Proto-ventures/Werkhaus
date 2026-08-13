@@ -15,9 +15,11 @@ import {
   api,
   type Artifact,
   type AttentionRequest,
+  type Company,
   type Decision,
   type Allowance,
   type LedgerEntry,
+  type MoneyModel,
   type Objection,
   type Shift,
 } from '@/api/client'
@@ -50,6 +52,7 @@ const SECTION_MAP: Record<string, { tab: Tab; section?: PlanSection }> = {
   shifts: { tab: 'plan', section: 'history' },
   history: { tab: 'plan', section: 'history' },
   money: { tab: 'plan', section: 'money' },
+  finances: { tab: 'plan', section: 'finances' },
   settings: { tab: 'plan', section: 'settings' },
   website: { tab: 'website' },
   code: { tab: 'code' },
@@ -84,23 +87,31 @@ export function Studio() {
 
   // ------------------------------------------------------------------- data
   const [attention, setAttention] = useState<AttentionRequest[]>([])
+  // Promoted into the top bar: the rail that normally carries these is
+  // hidden on a phone unless you are already looking at it, so a question
+  // could sit unanswered behind a pane you had no reason to open.
+  const waiting = attention.filter((a) => a.answered_at === null).length
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [objections, setObjections] = useState<Objection[]>([])
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
+  // What the business would earn. A different kind of money from the ledger
+  // above, and null until an employee has actually modelled it.
+  const [money, setMoney] = useState<MoneyModel | null>(null)
   const [allowance, setAllowance] = useState<Allowance | null>(null)
   const [busy, setBusy] = useState(false)
 
   const loadAll = useCallback(async () => {
     if (!cid) return
-    const [at, ar, ob, de, sh, le, al] = await Promise.all([
+    const [at, ar, ob, de, sh, le, mo, al] = await Promise.all([
       api.listAttention(cid),
       api.listArtifacts(cid),
       api.listObjections(cid),
       api.listDecisions(cid),
       api.listShifts(cid),
       api.listLedger(cid),
+      api.getMoney(cid),
       api.getAllowance(),
     ])
     setAttention(at)
@@ -109,6 +120,7 @@ export function Studio() {
     setDecisions(de)
     setShifts(sh)
     setLedger(le)
+    setMoney(mo)
     setAllowance(al)
   }, [cid])
 
@@ -166,6 +178,53 @@ export function Studio() {
     await navigator.clipboard.writeText(`${window.location.origin}${url}`)
     if (company?.share?.url) toast.success('Link copied.')
   }
+
+/**
+ * Spend against the cap, never out of view.
+ *
+ * While a shift runs, the founder is making one decision over and over: let it
+ * keep going, or stop it. Two facts answer that — how much of the cap is gone,
+ * and where the stop button is — and neither may scroll away, because the
+ * moment they do the safe move becomes closing the tab.
+ *
+ * The bar is the reading; the figures are the same reading in words, for when
+ * the bar is too short to judge and for anyone not reading colour. It turns at
+ * three quarters, which is early enough to act on.
+ */
+function Spend({ budget }: { budget: Company['budget'] }) {
+  const spent = Number(budget.spent)
+  const cap = Number(budget.cap)
+  if (!Number.isFinite(cap) || cap <= 0) return null
+  const frac = Math.min(1, spent / cap)
+  const close = frac >= 0.75
+  return (
+    <div
+      className="hidden shrink-0 items-center gap-2 md:flex"
+      title={`$${budget.spent} of $${budget.cap} spent`}
+    >
+      <span
+        aria-hidden
+        className="bg-secondary border-rule-soft relative h-1.5 w-16 overflow-hidden border"
+      >
+        <span
+          className={cn(
+            'absolute inset-y-0 left-0',
+            close ? 'bg-red' : 'bg-blue',
+          )}
+          style={{ width: `${frac * 100}%` }}
+        />
+      </span>
+      <span
+        className={cn(
+          'font-mono text-[0.6875rem] tabular-nums',
+          close ? 'text-red' : 'text-ink-faint',
+        )}
+      >
+        ${budget.spent}/${budget.cap}
+      </span>
+    </div>
+  )
+}
 
   return (
     <div className="flex h-dvh flex-col">
@@ -230,6 +289,20 @@ export function Studio() {
             <Mark shape={connected ? 'circle' : 'ring'} tone={connected ? 'blue' : 'faint'} />
             {connected ? 'live' : 'reconnecting'}
           </span>
+
+          {waiting > 0 && (
+            <button
+              type="button"
+              onClick={() => setPane('chat')}
+              className="btn btn-primary shrink-0 animate-none py-1 text-[0.8125rem]"
+              title="The team is waiting on an answer"
+            >
+              <Mark shape="triangle" tone="ink" className="text-paper" />
+              {waiting} waiting
+            </button>
+          )}
+
+          <Spend budget={company.budget} />
 
           {company.status === 'halted' ? (
             <button
@@ -350,6 +423,7 @@ export function Studio() {
               decisions={decisions}
               shifts={shifts}
               ledger={ledger}
+              finances={money}
               busy={busy}
               section={planSection}
               onSection={setPlanSection}

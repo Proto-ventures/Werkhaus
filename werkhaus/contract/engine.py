@@ -35,6 +35,7 @@ from werkhaus.contract.models import (
     CompanyId,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Objection,
     PublicSnapshot,
     ShareLink,
@@ -109,6 +110,15 @@ class Engine(Protocol):
     async def list_ledger(
         self, cid: CompanyId, limit: int = 200
     ) -> list[LedgerEntry]: ...
+
+    async def get_money_model(self, cid: CompanyId) -> MoneyModel | None:
+        """What the business would earn, as the assumptions it rests on.
+
+        None until somebody has modelled it. Deliberately not an empty model:
+        "nobody has done this yet" and "we modelled it and it comes to nothing"
+        are different facts, and a founder has to be able to tell them apart.
+        """
+        ...
 
     # --------------------------------------------------------------- user input
     async def answer_attention(

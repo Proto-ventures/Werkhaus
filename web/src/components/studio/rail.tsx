@@ -654,7 +654,7 @@ function Composer({
               send()
             }
           }}
-          className="placeholder:text-ink-faint min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-[0.875rem] leading-snug focus:outline-none"
+          className="placeholder:text-ink-faint min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-[0.875rem] leading-snug focus:outline-none focus-visible:ring-ring focus-visible:ring-2"
         />
         <button
           type="submit"

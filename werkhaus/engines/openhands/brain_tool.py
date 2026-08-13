@@ -168,6 +168,7 @@ class BrainAction(Action):
         "complete_task",
         "add_task",
         "record_artifact",
+        "record_money_model",
     ]
     task_id: str | None = None
     title: str | None = None
@@ -177,6 +178,12 @@ class BrainAction(Action):
     artifact_kind: ArtifactKind = ArtifactKind.DOC
     confidence: Confidence | None = None
     sources: list[str] = []
+    # record_money_model. A list rather than six named fields because the set
+    # of assumptions a business rests on is not fixed, and because every one of
+    # them has to arrive carrying its own mark — a money model where the marks
+    # are optional is a money model where they will be left off.
+    assumptions: list[dict[str, Any]] = []
+    currency: str = "EUR"
 
 
 class BrainObservation(Observation):
@@ -356,6 +363,34 @@ class BrainExecutor(ToolExecutor):
             f"Recorded {artifact.title} ({confidence}).{note}"
         )
 
+    def _record_money_model(self, action: BrainAction) -> BrainObservation:
+        ctx = self.ctx
+        if not action.assumptions:
+            return _error(
+                "record_money_model needs assumptions: a list of "
+                "{key, label, value, unit, confidence, note}."
+            )
+        try:
+            model = ctx.brain.record_money_model(
+                action.assumptions,
+                role_id=ctx.role_id,
+                shift_id=ctx.shift_id,
+                currency=action.currency,
+            )
+        except (KeyError, ValueError, ArithmeticError) as exc:
+            return _error(f"That money model would not go in: {exc}")
+        guessed = sum(1 for a in model.assumptions if a.confidence == "assumption")
+        ctx.bus.emit_threadsafe(
+            K.ARTIFACT_CREATED,
+            f"{ctx.name} filed the money model.",
+            shift_id=ctx.shift_id,
+            role_id=ctx.role_id,
+        )
+        return BrainObservation.from_text(
+            f"Money model filed: {len(model.assumptions)} assumptions, "
+            f"{guessed} of them guesses."
+        )
+
 
 TOOL_DESCRIPTION = """Your connection to the company.
 
@@ -371,6 +406,14 @@ Operations:
   the same file. confidence is "sourced" only if every source URL is a page you
   actually opened this shift; otherwise use "inferred" (reasoned from something
   sourced) or "assumption" (made up to keep going).
+- record_money_model(assumptions, currency?): file what the business would earn.
+  assumptions is a list of {key, label, value, unit, confidence, note}. The keys
+  the dashboard projects from are price, customers, new_customers, churn,
+  variable_cost and fixed_cost; unit is "money", "count" or "rate". Give only the
+  ones you can defend — a key you leave out is shown as a hole in the model,
+  which is honest, and a churn of zero you invented is not. Never file a revenue
+  figure: revenue is worked out from these, so that a number nobody earned can
+  never be stored as if somebody had.
 
 Work is not done until it is recorded here."""
 

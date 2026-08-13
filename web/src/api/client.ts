@@ -14,6 +14,7 @@ export type Artifact = components['schemas']['Artifact']
 export type Decision = components['schemas']['Decision']
 export type Task = components['schemas']['Task']
 export type LedgerEntry = components['schemas']['LedgerEntry']
+export type MoneyModel = components['schemas']['MoneyModel']
 
 /** The error envelope the API guarantees. Never a traceback. */
 export interface ApiError {
@@ -173,6 +174,9 @@ export const api = {
   listResources: (cid: string) =>
     request<ProvisionedResource[]>(`/companies/${cid}/resources`),
   listLedger: (cid: string) => request<LedgerEntry[]>(`/companies/${cid}/ledger`),
+  /** What the business would earn. Null until somebody has modelled it. */
+  getMoney: (cid: string) =>
+    request<MoneyModel | null>(`/companies/${cid}/finances`),
   /** Cold load: a shift is fully reconstructible without a live socket. */
   replay: (cid: string, sinceSeq = 0) =>
     request<ShiftEvent[]>(`/companies/${cid}/events?since_seq=${sinceSeq}`),

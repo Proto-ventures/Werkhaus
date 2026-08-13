@@ -1,27 +1,61 @@
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api } from '@/api/client'
-import { LiveShift } from '@/components/demo'
-import { ReportReplay } from '@/components/report'
+import { api, type ApiError } from '@/api/client'
+import { ShiftDiagram } from '@/components/diagram'
+import { Papers } from '@/components/papers'
+import { ShiftReel } from '@/components/reel'
+import { Sigil, type SigilName } from '@/components/sigil'
+import { cn } from '@/lib/utils'
+import {
+  FOUNDING,
+  HEADER,
+  MARK_EXAMPLES,
+  OBJECTIONS,
+  PRICING,
+  RIVALS,
+  RIVALS_CHECKED,
+} from '@/routes/specimen'
 import dandelions from '@/assets/dandelions.webp'
+import milletNight from '@/assets/millet-night.webp'
+import starryNight from '@/assets/starry-night.webp'
 import wheat from '@/assets/wheat.webp'
 
 /**
- * The front page shows the product twice: once running, once finished.
+ * The front page, ordered by what the reader is actually doing.
  *
- * Around it, a collage: the two canvases cut onto the paper at full strength,
- * one per side, with colour planes sampled from the paintings themselves
- * bridging the seams. Cut-outs rather than washes — a veiled painting is
- * wallpaper, a cut one is a composition. The planes reuse the site's own
- * vocabulary (blob, hexagon, ring, square) so the geometry and the fields
- * read as one picture, not a theme and an afterthought.
+ * Their task is not "understand the product". The buyer worth winning has been
+ * burned by two of these already and is skeptical of *confident* AI, so the
+ * task is: decide whether this one is honest enough to describe a business to.
+ *
+ * That fixes the order. Evidence outranks the box — someone who types before
+ * they trust bounces at the first number they cannot check — so a real finished
+ * shift sits beside the headline rather than below the fold. The price sits on
+ * the box, not in a footer. And the page says one thing Werkhaus will not do,
+ * because for this reader a stated limit is the conversion mechanism rather
+ * than a cost.
+ *
+ * Below the hero it is built out of things to look at rather than things to
+ * read: a shift playing back, the documents as objects with their marks
+ * showing, eight drawings, and one instrument for the money. The prose that
+ * survived is there to caption a picture, never to carry the argument on its
+ * own — a page of dense justified text is a page the reader's eye slides off,
+ * however true every sentence in it is.
  */
 export function Landing() {
   return (
     <>
+      {/* The order is the order the questions arrive in: what is it, what
+          happens if I press it, what do I get, who checks it, who are they,
+          what does it cost and what won't it do. */}
       <Hero />
-      <Report />
+      <Reel />
+      <Leaves />
+      <Marks />
+      <Objections />
+      <Roster />
+      <Pricing />
       <Close />
     </>
   )
@@ -33,19 +67,102 @@ const IDEAS = [
   'A refill service for cleaning products, delivered by cargo bike.',
 ]
 
-/** Museum label. An unattributed background is decoration; this is a choice. */
-function Caption({ text, className }: { text: string; className?: string }) {
+/**
+ * The canvases, and which hour it is.
+ *
+ * Light and dark are not two moods. They are the same two painters at the same
+ * place at different hours: Van Gogh's Wheat Field with Cypresses and his
+ * Starry Night are both Saint-Rémy, 1889, the second painted from the window of
+ * his room there. Millet is the elder painter he revered, and Millet's own
+ * Starry Night is one he may have seen in Paris in 1873-75.
+ *
+ * So the toggle changes the hour, not the art direction, and the captions can
+ * say so. An unattributed background is decoration; a labelled one is a choice.
+ */
+function useCanvases() {
+  const { resolvedTheme } = useTheme()
+  const night = resolvedTheme === 'dark'
+  return night
+    ? {
+        wide: starryNight,
+        wideCaption: 'the starry night · van gogh · 1889',
+        narrow: milletNight,
+        narrowCaption: 'starry night · millet · c.1850',
+      }
+    : {
+        wide: wheat,
+        wideCaption: 'wheat field with cypresses · van gogh · 1889',
+        narrow: dandelions,
+        narrowCaption: 'dandelions · millet · 1868',
+      }
+}
+
+/**
+ * A section standing on a painting.
+ *
+ * The canvases used to sit in a column *beside* the words, which makes them
+ * illustrations of a paragraph — decoration, and the first thing an eye learns
+ * to skip. Here the painting is the ground the whole section is built on and
+ * the content is laid on top of it as opaque sheets, the way paper sits on a
+ * table. The paint runs at full strength because nothing is asked to be legible
+ * through it: every word on this page is on solid ink-on-paper, and the margin
+ * around the sheets is where the painting does its work.
+ */
+function Field({
+  which,
+  focus,
+  children,
+  className,
+}: {
+  which: 'wide' | 'narrow'
+  focus: string
+  children: React.ReactNode
+  className?: string
+}) {
+  const canvas = useCanvases()
+  const src = which === 'wide' ? canvas.wide : canvas.narrow
   return (
-    <p
-      className={`text-ink-soft bg-paper/85 pointer-events-none z-10 px-2 py-0.5 font-mono text-[0.625rem] ${className ?? ''}`}
-    >
-      {text}
-    </p>
+    <section className={`border-rule-soft relative border-b ${className ?? ''}`}>
+      <img
+        src={src}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        style={{ objectPosition: focus }}
+        className="absolute inset-0 size-full object-cover"
+      />
+      <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-20 lg:py-28">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/** A heading and at most a sentence, on a sheet, so it can sit on paint. */
+function Placard({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children?: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`panel max-w-xl p-6 sm:p-8 ${className ?? ''}`}>
+      <h2 className="display max-w-[20ch] text-2xl leading-tight sm:text-[2.1rem]">
+        {title}
+      </h2>
+      {children && (
+        <p className="text-ink-soft mt-4 text-[1.0625rem] leading-[1.6]">{children}</p>
+      )}
+    </div>
   )
 }
 
 function Hero() {
   const navigate = useNavigate()
+  const canvas = useCanvases()
   const [idea, setIdea] = useState('')
   const [busy, setBusy] = useState(false)
   // A placeholder that types itself is indistinguishable from a box that came
@@ -69,15 +186,7 @@ function Hero() {
       const company = await api.createCompany(idea.trim())
       navigate(`/c/${company.id}`)
     } catch (e) {
-      const detail = (e as { detail?: { hint?: string | null } }).detail
-      // A dead server rejects with a TypeError from fetch, whose message is
-      // "Failed to fetch" — true, and useless to the person reading it.
-      const failure = detail
-        ? { message: (e as Error).message, hint: detail.hint ?? undefined }
-        : {
-            message: "We couldn't reach Werkhaus.",
-            hint: 'The server may not be running. Nothing you typed was lost.',
-          }
+      const failure = describeFailure(e)
       setFailed(failure)
       toast.error(failure.message)
       setBusy(false)
@@ -85,147 +194,102 @@ function Hero() {
   }
 
   return (
-    <section id="top" className="border-rule relative overflow-hidden border-b">
-      {/* Small screens: one canvas as a soft backdrop, since there is no room
-          for cut-outs beside the text. */}
-      <div className="absolute inset-0 lg:hidden" aria-hidden>
+    // `overflow-x-clip` rather than `hidden`: the diagram is drawn wider than
+    // its column on purpose and runs off the right edge, and clip cuts it
+    // without turning the section into a scroll container.
+    <section id="top" className="border-rule-soft relative overflow-x-clip border-b">
+      {/* The canvases carry the ground. Both hang full height, one either side,
+          meeting behind a clear band down the middle where the words live. The
+          band is solid rather than a scrim: text on top of oil paint is a
+          contrast problem you can only ever half-solve, and this way the
+          paintings can run at full strength instead of being turned down to
+          make room. Below xl there is no room for a margin, so they go. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 hidden xl:block">
         <img
-          src={wheat}
+          src={canvas.wide}
           alt=""
           loading="eager"
-          className="h-full w-full object-cover object-[66%_45%]"
+          className="absolute inset-y-0 left-0 h-full w-[42%] object-cover"
         />
+        <img
+          src={canvas.narrow}
+          alt=""
+          loading="eager"
+          className="absolute inset-y-0 right-0 h-full w-[42%] object-cover"
+        />
+        {/* The clear band, with its edges dissolved into the paint so the
+            middle reads as a lit clearing rather than a pasted rectangle. */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-y-0 left-1/2 w-[70%] -translate-x-1/2"
           style={{
             background:
-              'linear-gradient(to bottom, var(--paper) 34%, color-mix(in oklab, var(--paper) 82%, transparent))',
+              'linear-gradient(to right, transparent, var(--paper) 5%, var(--paper) 95%, transparent)',
           }}
         />
       </div>
 
-      {/* Left cut: the Millet, living in the viewport margin on wide screens.
-          Width is computed from the free space beside the container, so it
-          never reaches the text. */}
-      <div
-        aria-hidden
-        className="absolute inset-y-0 left-0 hidden xl:block"
-        style={{
-          width: 'min(420px, calc((100vw - 72rem) / 2 + 1.5rem))',
-          clipPath: 'polygon(0 0, 100% 0, 74% 100%, 0 100%)',
-        }}
-      >
-        <img
-          src={dandelions}
-          alt=""
-          loading="eager"
-          className="h-full w-full object-cover object-[30%_60%]"
-        />
-      </div>
-
-      {/* Right cut: the Van Gogh at full strength, seam slanting through the
-          hero. The demo panel floats on it, solid white on canvas. */}
-      <div
-        aria-hidden
-        className="absolute inset-y-0 right-0 hidden lg:block"
-        style={{
-          width: 'min(44vw, 700px)',
-          clipPath: 'polygon(14% 0, 100% 0, 100% 100%, 0 100%)',
-        }}
-      >
-        <img
-          src={wheat}
-          alt=""
-          loading="eager"
-          className="h-full w-full object-cover object-[66%_45%]"
-        />
-      </div>
-
-      {/* The planes. Each is one of the site's own primitives, in a colour
-          sampled from the canvases, placed across a seam so paper and painting
-          share pigment. Multiply blends dye rather than cover. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden lg:block">
-        <div
-          className="bg-wheat-gold absolute -top-24 left-[2vw] h-[24rem] w-[22rem] mix-blend-multiply"
-          style={{ opacity: 0.42, borderRadius: '58% 42% 63% 37% / 46% 58% 42% 54%' }}
-        />
-        <div
-          className="bg-cypress absolute top-8 right-[40vw] h-24 w-24"
-          style={{
-            opacity: 0.88,
-            clipPath: 'polygon(28% 4%, 76% 0%, 100% 46%, 74% 98%, 22% 100%, 0% 52%)',
-          }}
-        />
-        <div
-          className="border-vg-sky absolute -bottom-24 right-[34vw] size-[20rem] rounded-full border-[3px]"
-          style={{ opacity: 0.85 }}
-        />
-        <div className="bg-yellow absolute right-[42vw] bottom-16 size-7 rotate-[8deg]" />
-      </div>
-
-      <Caption
-        text="wheat field with cypresses, van gogh, 1889"
-        className="absolute right-0 bottom-0"
-      />
-      <Caption
-        text="dandelions, millet, 1868"
-        className="absolute bottom-0 left-0 hidden xl:block"
-      />
-
-      <div className="relative mx-auto grid max-w-6xl px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:gap-12">
-        <div className="py-12 lg:py-16">
-          <h1 className="display text-[2rem] leading-[1.08] sm:text-[2.75rem]">
+      <div className="relative mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12 lg:py-20 xl:max-w-5xl xl:py-24">
+        <div>
+          <h1 className="display text-[1.85rem] leading-[1.06] sm:text-[2.4rem] lg:text-[3.1rem]">
             Describe a business.
             <br />
-            Eight employees build it.
+            Find out if it&rsquo;s worth building.
           </h1>
 
-          <p className="text-ink-soft mt-5 max-w-xl text-[1.0625rem] leading-relaxed">
-            You get a working product. Research with its sources, a price you
-            can defend, a database of your own, and a page at a real address
-            that takes signups and payments. Vera, the eighth, spends her shift
-            trying to prove the other seven wrong.
+          {/* The offer, in the order it is wanted: what you get, how long it
+              takes, and where it goes afterwards. The hand-off is said out
+              loud because the alternative is letting a reader assume we build
+              the app and discover otherwise — which is the one mistake on this
+              page we cannot take back. */}
+          <p className="text-ink-soft mt-6 max-w-[47ch] text-[1.0625rem] leading-[1.65]">
+            Eight employees spend fourteen minutes on the part you cannot vibe
+            code: the rivals and what they charge, one price you can defend, a
+            money model with every guess labelled, and where your first
+            customers already are. Every claim says where it came from.
           </p>
 
-          <div className="panel mt-8">
+          <p className="text-ink-soft mt-3 max-w-[47ch] text-[1.0625rem] leading-[1.65]">
+            You leave with a folder of ordinary files. Build it in Lovable,
+            Base44, Cursor, or hand it to a developer.
+          </p>
+
+          <div className="border-rule mt-9 border">
             <textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               rows={3}
               placeholder={placeholder}
-              className="placeholder:text-ink-faint block w-full resize-none px-4 py-4 text-[0.9375rem] leading-relaxed outline-none"
+              className="placeholder:text-ink-faint bg-panel block w-full resize-none px-4 py-4 text-[0.9375rem] leading-relaxed outline-none focus-visible:ring-ring focus-visible:ring-2"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void begin()
               }}
             />
-            <div className="border-rule-soft flex items-center justify-between gap-3 border-t px-4 py-2.5">
+            <div className="border-rule-soft bg-panel flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t px-4 py-3">
               {idea.trim() ? (
-                <span className="text-ink-faint font-mono text-[0.6875rem]">
+                <span className="text-ink-faint font-mono text-[0.6875rem] tracking-[0.08em] whitespace-nowrap uppercase">
                   ctrl + enter
                 </span>
               ) : (
                 // What the only button on the page costs, said before it is
-                // pressed. A stranger cannot tell from "start the company"
-                // whether they are about to be charged, and an unpriced action
-                // is a reason to not press it. The example link gives way on
-                // small screens: both fit at sm and up, and of the two, the
-                // price is the one that decides whether anyone acts.
+                // pressed. An unpriced action is a reason not to press it, and
+                // the example link gives way below sm because of the two, the
+                // price is what decides whether anybody acts.
                 <span className="flex items-center gap-3">
-                  <span className="text-ink-faint font-mono text-[0.6875rem]">
-                    free while we are testing
+                  <span className="text-ink-faint font-mono text-[0.6875rem] tracking-[0.08em] whitespace-nowrap uppercase">
+                    no card needed
                   </span>
                   <button
                     type="button"
                     onClick={() => setExample((n) => n + 1)}
-                    className="text-link hidden font-mono text-[0.6875rem] underline sm:inline"
+                    className="text-link hidden font-mono text-[0.6875rem] whitespace-nowrap underline lg:inline"
                   >
-                    show another example
+                    another example
                   </button>
                 </span>
               )}
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary ml-auto"
                 disabled={busy || !idea.trim()}
                 onClick={begin}
               >
@@ -233,7 +297,7 @@ function Hero() {
               </button>
             </div>
             {failed && (
-              <div className="border-rule-soft border-t px-4 py-3">
+              <div className="border-rule-soft bg-panel border-t px-4 py-3">
                 <p className="text-red text-[0.875rem] leading-snug">
                   {failed.message}
                 </p>
@@ -246,145 +310,660 @@ function Hero() {
             )}
           </div>
 
-          <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3">
-            <Fact k="three" v="shifts to a working product" />
-            <Fact k="one" v="employee paid to attack the rest" />
-            <Fact k="every" v="claim marked with its source" />
+          {/* The facts as a reading off an instrument rather than three
+              headlines. They are measurements, and measurements are set in
+              the mono face everywhere else in the product. */}
+          <dl className="mt-9 max-w-[30rem]">
+            <div className="spec">
+              <dt>one shift takes</dt>
+              <dd>14 min</dd>
+            </div>
+            <div className="spec">
+              <dt>free to start</dt>
+              <dd>3 shifts</dd>
+            </div>
+            <div className="spec">
+              <dt>employees paid to attack the rest</dt>
+              <dd>1</dd>
+            </div>
           </dl>
         </div>
 
-        <div className="pb-12 lg:py-8 lg:pl-8">
-          {/* Labelled, because an unlabelled demo of one example business is
-              how a product comes to look like it only builds that business. */}
-          <p className="eyebrow text-ink-faint bg-paper/85 mb-2 inline-block px-1.5 py-0.5">
-            a recording · three shifts, sped up
-          </p>
-          <LiveShift />
+        {/* Evidence, beside the headline rather than below it. Labelled,
+            because an unlabelled demo of one example business is how a product
+            comes to look like it only builds that business. */}
+        <div className="lg:pt-6">
+          <ShiftDiagram idea={idea} />
         </div>
       </div>
     </section>
   )
 }
 
-function Fact({ k, v }: { k: string; v: string }) {
+/**
+ * Three ways starting a company can fail, and they are not the same sentence.
+ *
+ * The engine answered and refused: it wrote prose for this, so use it. Nothing
+ * answered at all: on a laptop that means the server is not running, which is
+ * a thing the person reading it can actually fix. Something answered but it
+ * was not the engine: this build is being served without one, which is what
+ * the public page is until there is somewhere to put a company. Telling a
+ * stranger our server may be down would be alarming, and it would also be
+ * false.
+ *
+ * The three are told apart without a build flag or a configured URL, because
+ * the client is origin-relative on purpose and should stay that way. Every
+ * reply from the engine carries a request id (``attach_request_id`` in
+ * ``api/app.py`` sets one on every response), so ``req_unknown`` means the
+ * reply came from something else — a static host answering with its own 404,
+ * or an index.html served in place of an API.
+ */
+function describeFailure(e: unknown): { message: string; hint?: string } {
+  const detail = (e as { detail?: ApiError }).detail
+  if (detail && detail.request_id !== 'req_unknown') {
+    return { message: (e as Error).message, hint: detail.hint ?? undefined }
+  }
+  // fetch rejects with a TypeError when it cannot connect at all. Its message
+  // is "Failed to fetch", which is true and useless to the person reading it.
+  if (e instanceof TypeError) {
+    return {
+      message: "We couldn't reach Werkhaus.",
+      hint: 'The server may not be running. Nothing you typed was lost.',
+    }
+  }
+  return {
+    message: 'Werkhaus is not open yet.',
+    hint: 'You are looking at a preview. Nothing you typed was lost, and the recording above is a real shift.',
+  }
+}
+
+/**
+ * A shift, played rather than described.
+ *
+ * This section used to be a paragraph explaining what happens in fourteen
+ * minutes. Nobody reads a paragraph about a process. Watching an empty folder
+ * fill up, with the clock and the meter running beside it, is the same
+ * information in a form the eye will actually stay on.
+ */
+function Reel() {
   return (
-    <div>
-      <dt className="display text-xl leading-none">{k}</dt>
-      <dd className="text-ink-faint bg-paper/85 mt-1 font-mono text-[0.6875rem]">{v}</dd>
-    </div>
+    <section className="border-rule-soft border-b">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+        <h2 className="display max-w-[22ch] text-2xl leading-tight sm:text-[2.1rem]">
+          Fourteen minutes, from an empty folder.
+        </h2>
+        <p className="text-ink-soft mt-4 max-w-[54ch] text-[1.0625rem] leading-[1.6]">
+          Not a progress bar. Pages get opened, documents land with the mark
+          they earned, what it costs us climbs, and what the business would earn
+          fills in one defensible number at a time.
+        </p>
+        <ShiftReel className="mt-10" />
+      </div>
+    </section>
   )
 }
 
 /**
- * The report is pinned over the collage, not mixed into it: the panel stays
- * solid white so the data never shares ground with a painting, and the canvas
- * and planes peek out from behind its edges.
+ * What a shift leaves behind, as four things rather than four filenames.
+ *
+ * The list of names told you the documents existed. The pages show you what is
+ * inside them and which marks they carry, which is the only part a reader
+ * cannot take on trust — and they are laid straight onto the painting, because
+ * a sheet of paper on a table is what they are.
  */
-function Report() {
+function Leaves() {
   return (
-    <section className="border-rule relative overflow-hidden border-b">
-      {/* Wheat again, but a different crop — the golden mass low in the
-          canvas, not the hero's cypress framing — so it reads as another
-          fragment of the same print, not a repeat. */}
-      <div
-        aria-hidden
-        className="absolute inset-y-0 left-0 hidden xl:block"
-        style={{
-          width: 'min(360px, calc((100vw - 72rem) / 2 + 1rem))',
-          clipPath: 'polygon(0 0, 100% 6%, 70% 100%, 0 100%)',
-        }}
-      >
-        <img
-          src={wheat}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover object-[20%_72%]"
-        />
-      </div>
+    <Field which="wide" focus="30% 70%">
+      <Placard title="Four documents you can open in front of someone.">
+        Ordinary markdown in a folder you own. Every claim carries a mark saying
+        where it came from, because you cannot check a hundred pages of research
+        and you can check a mark.
+      </Placard>
+      <Papers className="mt-8 sm:mt-10" />
+    </Field>
+  )
+}
 
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden md:block">
-        <div
-          className="bg-wheat-gold absolute -top-12 right-[3vw] h-[15rem] w-[14rem] mix-blend-multiply"
-          style={{ opacity: 0.34, borderRadius: '52% 48% 44% 56% / 60% 42% 58% 40%' }}
-        />
-        <div
-          className="border-vg-sky absolute -bottom-20 left-[9vw] size-[13rem] rounded-full border-[3px]"
-          style={{ opacity: 0.8 }}
-        />
-        <div
-          className="bg-meadow absolute top-24 right-[1.5vw] h-16 w-16"
-          style={{
-            opacity: 0.85,
-            clipPath: 'polygon(24% 6%, 74% 0%, 100% 44%, 78% 96%, 20% 100%, 0% 54%)',
-          }}
-        />
-      </div>
+/**
+ * The wedge, shown rather than described.
+ *
+ * Everything else on this page is a claim about honesty, which is exactly what
+ * this reader has been burned by twice. This is the mechanism: one sentence
+ * about one rival, three times, under the three marks — so the difference
+ * between "we read this" and "we made this up" is a shape you can see rather
+ * than a policy you have to believe.
+ */
+function Marks() {
+  return (
+    <section className="border-rule-soft border-b">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+        <h2 className="display max-w-[24ch] text-2xl leading-tight sm:text-[2.1rem]">
+          Filled means read. Hollow means guessed.
+        </h2>
 
-      <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <p className="eyebrow text-ink-faint bg-paper/85 mb-2 inline-block px-1.5 py-0.5">
-          a finished example · yours will be about your idea
+        <ul className="mt-10 grid gap-px sm:grid-cols-3 sm:bg-rule-soft">
+          {MARK_EXAMPLES.map((r) => (
+            <li key={r.mark} className="bg-panel border-rule-soft border p-6 sm:border-0">
+              <span
+                aria-hidden
+                className={
+                  r.mark === 'assumption'
+                    ? 'mark mark-ring border-assumption !size-5 border-[3px]'
+                    : r.mark === 'sourced'
+                      ? 'mark mark-square bg-sourced !size-5'
+                      : 'mark mark-square bg-inferred !size-5'
+                }
+              />
+              <p className="text-ink-faint mt-4 font-mono text-[0.6875rem] tracking-[0.12em] uppercase">
+                {r.mark}
+              </p>
+              <p className="display mt-2 text-[1.25rem] leading-tight">{r.claim}</p>
+              <p className="text-ink-soft mt-3 text-[0.875rem] leading-relaxed">
+                {r.behind}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <p className="text-ink-faint mt-5 font-mono text-[0.6875rem] leading-relaxed">
+          the shape survives a screenshot, a printer, and being pasted into a deck
         </p>
-        <ReportReplay />
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Vera, at the end of every shift.
+ *
+ * The strongest thing the product does. Each objection is a card with a torn
+ * edge of its own severity, because three of them in a column of prose read as
+ * a disclaimer and a disclaimer is the one thing this cannot be: she names a
+ * claim, and she names what would settle it.
+ */
+function Objections() {
+  return (
+    <Field which="narrow" focus="60% 40%">
+      <Placard title="Then someone is paid to pull it apart.">
+        Vera runs at the end of every shift, including the ones that ran out of
+        budget. She has no write access, and every objection names what would
+        settle it.
+      </Placard>
+
+      <ul className="mt-8 grid gap-4 sm:mt-10 lg:grid-cols-3">
+        {OBJECTIONS.map(({ severity, about, text, settled }) => (
+          <li key={about} className="panel flex flex-col p-5 sm:p-6">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className={
+                  severity === 'serious'
+                    ? 'mark mark-triangle text-red'
+                    : 'mark mark-square bg-ink-faint'
+                }
+              />
+              <span
+                className={
+                  severity === 'serious'
+                    ? 'text-red font-mono text-[0.6875rem] tracking-[0.12em] uppercase'
+                    : 'text-ink-faint font-mono text-[0.6875rem] tracking-[0.12em] uppercase'
+                }
+              >
+                {severity}
+              </span>
+              <span className="text-ink-faint ml-auto truncate font-mono text-[0.625rem]">
+                {about}
+              </span>
+            </div>
+
+            <p className="mt-3 text-[1.0625rem] leading-snug">{text}</p>
+
+            <p className="border-rule-soft text-ink-soft mt-auto border-t pt-3 text-[0.8125rem] leading-relaxed">
+              <span className="text-ink-faint block font-mono text-[0.625rem] tracking-[0.1em] uppercase">
+                settled by
+              </span>
+              {settled}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Field>
+  )
+}
+
+/** The eight, and what each one is for. */
+const PEOPLE: { id: SigilName; name: string; job: string; does: string }[] = [
+  {
+    id: 'chief',
+    name: 'ada',
+    job: 'chief of staff',
+    does: 'Sets what the company works on, and writes up what happened.',
+  },
+  {
+    id: 'researcher',
+    name: 'maya',
+    job: 'market researcher',
+    does: 'Reads real competitor sites. Reports only what she can source.',
+  },
+  {
+    id: 'strategist',
+    name: 'ines',
+    job: 'strategist',
+    does: 'One audience, one price. Commits to an answer, not a menu.',
+  },
+  {
+    id: 'brand',
+    name: 'otto',
+    job: 'brand & copy',
+    does: "Writes the words, in the customer's language rather than the company's.",
+  },
+  {
+    id: 'growth',
+    name: 'rafa',
+    job: 'growth',
+    does: 'Finds where the audience already is. Drafts outreach — never sends it.',
+  },
+  {
+    id: 'analyst',
+    name: 'nia',
+    job: 'numbers',
+    does: 'Builds the money model and labels every assumption in it.',
+  },
+  {
+    id: 'engineer',
+    name: 'kit',
+    job: 'builder',
+    does: 'Will build the landing page. Not shipped yet — today a shift stops at the documents.',
+  },
+  {
+    id: 'critic',
+    name: 'vera',
+    job: "devil's advocate",
+    does: 'Paid to be wrong-proof, not agreeable. Files objections you can check.',
+  },
+]
+
+function Roster() {
+  return (
+    <section className="border-rule-soft border-b">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+        <h2 className="display max-w-[18ch] text-2xl leading-tight sm:text-[2.1rem]">
+          Eight of them, and what each one is for.
+        </h2>
+
+        {/* A hairline grid, drawn once by the gap, the way a spec sheet rules
+            a table. Eight cards with eight borders is eight boxes; this is one
+            plate divided up. */}
+        <ul className="bg-rule-soft border-rule-soft mt-10 grid gap-px border sm:grid-cols-2 lg:grid-cols-4">
+          {PEOPLE.map((p) => (
+            <li key={p.name} className="bg-panel flex flex-col p-5">
+              <Sigil name={p.id} className="text-ink size-8" />
+              <p className="mt-4 font-mono text-[0.8125rem] tracking-[0.1em] uppercase">
+                {p.name}
+              </p>
+              <p className="text-ink-faint font-mono text-[0.625rem] tracking-[0.06em] uppercase">
+                {p.job}
+              </p>
+              <p className="text-ink-soft mt-2.5 text-[0.875rem] leading-relaxed">
+                {p.does}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * What Werkhaus will not claim, kept beside what it charges.
+ *
+ * Taken from positioning.md, which holds this list precisely so the temptation
+ * to overclaim has somewhere to break against. The first entry is the one that
+ * matters against a builder: they ship an app, we do not.
+ */
+const NOTS: [string, string][] = [
+  ['a builder', 'It works out what to build. Building it is Lovable, Base44, Cursor, or a developer.'],
+  ['validated', 'Competitor pricing makes a price defensible. Only a customer validates one.'],
+  ['a launch in an hour', 'A shift gets you something to show. That is not the same as a business.'],
+  ['a replacement for a co-founder', 'It does groundwork. It does not do judgement.'],
+  ['customers', 'Rafa drafts outreach. Nothing is ever sent on your behalf.'],
+]
+
+/** Where the money goes, drawn to scale. */
+const CAP = 20
+
+/**
+ * The price, printed, and sold.
+ *
+ * The page had a cost section with no prices in it, which is the shape of a
+ * product that is not for sale — and this one is, on purpose, before it is
+ * finished. So every lever that is honestly available is pulled: the number is
+ * under what a reader is already paying elsewhere, the annual saving is stated
+ * in euros rather than in a percentage nobody converts, the reason it is cheap
+ * is the same reason to take it now, and the row that would stop a burned buyer
+ * (what happens to the price later) is answered before they can ask it.
+ *
+ * The comparison table is the part that does the work. It is not there to say
+ * we are cheaper — it is there to say we are cheaper *and doing the other
+ * half of the job*, which is the only argument that survives someone who
+ * already has a Lovable subscription.
+ */
+function Pricing() {
+  // Yearly first. It is the better price for them and it is cash now for us,
+  // and a toggle that opens on the worse number is a toggle nobody moves.
+  const [yearly, setYearly] = useState(true)
+  const founding = PRICING.find((t) => t.featured)
+  const mail = (tier: string) =>
+    `mailto:${FOUNDING.contact}?subject=${encodeURIComponent(
+      `Werkhaus ${tier} — a founding place`,
+    )}&body=${encodeURIComponent(
+      'The business I would describe first:\n\n\nHow soon I would want to start:\n',
+    )}`
+
+  return (
+    <section id="pricing" className="border-rule-soft border-b">
+      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+          <div>
+            <h2 className="display max-w-[20ch] text-2xl leading-tight sm:text-[2.1rem]">
+              Less than the thing that builds it.
+            </h2>
+            <p className="text-ink-soft mt-4 max-w-[54ch] text-[1.0625rem] leading-[1.6]">
+              Deciding what to build should not be the expensive half of your
+              stack. Start free, with no card. Keep the folder either way.
+            </p>
+          </div>
+
+          {/* The saving in euros, on the control that produces it. A percentage
+              is a number the reader has to do arithmetic on before it means
+              anything, and they will not. */}
+          <div className="border-rule flex shrink-0 border">
+            {(['yearly', 'monthly'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setYearly(mode === 'yearly')}
+                aria-pressed={yearly === (mode === 'yearly')}
+                className={cn(
+                  'focus-visible:ring-ring px-4 py-2 font-mono text-[0.6875rem] tracking-[0.08em] uppercase focus-visible:ring-2 focus-visible:outline-none',
+                  yearly === (mode === 'yearly')
+                    ? 'bg-ink text-paper'
+                    : 'text-ink-soft hover:bg-secondary',
+                )}
+              >
+                {mode}
+                {mode === 'yearly' && founding?.price && founding.year
+                  ? ` · save €${founding.price * 12 - founding.year}`
+                  : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <ul className="bg-rule-soft border-rule-soft mt-10 grid gap-px border lg:grid-cols-3">
+          {PRICING.map((tier) => {
+            const monthly = yearly && tier.year ? tier.year / 12 : tier.price
+            return (
+              <li key={tier.plan} className="bg-panel flex flex-col p-6 sm:p-7">
+                {/* A full strip rather than a corner tab: a tab on the right
+                    edge of the middle card sits on the seam with the next one
+                    and reads as labelling either. */}
+                {tier.featured && (
+                  <span className="bg-ink text-paper -mx-6 -mt-6 mb-5 block px-6 py-1.5 font-mono text-[0.625rem] tracking-[0.1em] uppercase sm:-mx-7 sm:-mt-7 sm:px-7">
+                    founding price
+                  </span>
+                )}
+                <p className="font-mono text-[0.8125rem] tracking-[0.12em] uppercase">
+                  {tier.label}
+                </p>
+                <p className="text-ink-soft mt-1.5 max-w-[26ch] text-[0.875rem] leading-snug">
+                  {tier.pitch}
+                </p>
+
+                <p className="mt-6 flex items-baseline gap-2">
+                  <span className="numeric text-[2.5rem] leading-none">
+                    {monthly === null || monthly === undefined
+                      ? 'Free'
+                      : `€${monthly % 1 === 0 ? monthly : monthly.toFixed(2)}`}
+                  </span>
+                  {monthly != null && (
+                    <span className="text-ink-faint font-mono text-[0.6875rem] tracking-[0.08em] uppercase">
+                      a month
+                    </span>
+                  )}
+                </p>
+                <p className="text-ink-faint mt-1.5 font-mono text-[0.625rem] leading-relaxed">
+                  {monthly == null
+                    ? 'no card, no trial clock'
+                    : yearly
+                      ? `€${tier.year} once a year`
+                      : 'billed monthly, cancel whenever'}
+                </p>
+
+                <ul className="mt-6 flex-1 space-y-2.5">
+                  {tier.gets.map((line) => (
+                    <li key={line} className="flex items-baseline gap-2.5">
+                      <span
+                        aria-hidden
+                        className="mark mark-square bg-inferred !size-1.5 translate-y-[1px]"
+                      />
+                      <span className="text-ink-soft text-[0.875rem] leading-snug">
+                        {line}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <a
+                  href={tier.price === null ? '#top' : mail(tier.label)}
+                  className={cn('btn mt-7 w-full', tier.featured ? 'btn-primary' : '')}
+                >
+                  {tier.price === null
+                    ? 'start free'
+                    : tier.featured
+                      ? 'take the founding price'
+                      : 'ask about pro'}
+                </a>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/* The two objections a reader has at this exact point, answered where
+            they have them rather than in a FAQ nobody opens. */}
+        <div className="border-rule-soft mt-6 grid gap-px bg-rule-soft border sm:grid-cols-3">
+          {[
+            ['the price later', `€${FOUNDING.then} once ${FOUNDING.until}. Join before then and you keep yours.`],
+            ['a shift that filed nothing', 'Not charged. Our failure, not your bill.'],
+            ['getting your work out', 'Ordinary markdown in a folder. Nothing is locked in ours.'],
+          ].map(([term, answer]) => (
+            <div key={term} className="bg-panel p-4">
+              <p className="text-ink-faint font-mono text-[0.625rem] tracking-[0.08em] uppercase">
+                {term}
+              </p>
+              <p className="text-ink-soft mt-1.5 text-[0.875rem] leading-snug">{answer}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-ink-faint mt-4 font-mono text-[0.6875rem] leading-relaxed">
+          no card is taken on this page · a founding place is arranged by email
+          until there is a checkout worth pointing you at
+        </p>
+
+        {/* ------------------------------------------------ against the others */}
+        <h3 className="display mt-16 max-w-[26ch] text-xl leading-tight sm:text-2xl">
+          You are probably already paying for one of these.
+        </h3>
+        <table className="mt-6 w-full border-collapse text-left">
+          <thead>
+            <tr className="text-ink-faint font-mono text-[0.625rem] tracking-[0.1em] uppercase">
+              <th scope="col" className="border-rule-soft border-b py-2 font-normal">
+                tool
+              </th>
+              <th scope="col" className="border-rule-soft border-b py-2 font-normal">
+                {yearly ? 'a month, paid yearly' : 'a month'}
+              </th>
+              <th scope="col" className="border-rule-soft border-b py-2 font-normal">
+                what it does
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {RIVALS.map((rival) => (
+              <tr key={rival.name} className={cn(rival.ours && 'bg-secondary')}>
+                <th
+                  scope="row"
+                  className="border-rule-soft border-b py-3 pr-4 font-mono text-[0.8125rem] font-normal tracking-[0.06em] uppercase"
+                >
+                  {rival.name}
+                </th>
+                {/* Like for like. Holding the table on one billing mode while
+                    the cards show the other is how a fair comparison turns
+                    into a rigged one by accident. */}
+                <td className="border-rule-soft numeric border-b py-3 pr-4 text-[0.875rem] whitespace-nowrap">
+                  {yearly ? rival.yearly : rival.monthly}
+                  {rival.derived && !yearly && (
+                    <span className="text-ink-faint" aria-hidden>
+                      *
+                    </span>
+                  )}
+                </td>
+                <td className="border-rule-soft text-ink-soft border-b py-3 text-[0.875rem] leading-snug">
+                  {rival.does}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-ink-faint mt-3 font-mono text-[0.625rem] leading-relaxed">
+          {RIVALS_CHECKED} · they build what you tell them to build. we are the
+          part that works out what to tell them.
+        </p>
+
+        {/* ------------------------------------------------------ the cap, and
+            the five things it will never do. Kept under the price because a
+            stated limit is what makes the number above believable. */}
+        <div className="mt-16 grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
+          <div>
+            <h3 className="display max-w-[18ch] text-xl leading-tight sm:text-2xl">
+              And a cap you set, not one we promise.
+            </h3>
+
+            <div className="mt-6">
+              <div className="flex items-baseline gap-3">
+                <span className="numeric text-[2.25rem] leading-none">$4</span>
+                <span className="text-ink-faint font-mono text-[0.6875rem] tracking-[0.1em] uppercase">
+                  what one shift spends on thinking
+                </span>
+              </div>
+
+              <div className="border-rule relative mt-5 h-7 border">
+                <div
+                  className="bg-ink absolute inset-y-0 left-0"
+                  style={{ width: `${(4 / CAP) * 100}%` }}
+                />
+                <div
+                  className="border-ink absolute inset-y-0 border-r"
+                  style={{
+                    left: `${(4 / CAP) * 100}%`,
+                    width: `${(6 / CAP) * 100}%`,
+                    backgroundImage:
+                      'repeating-linear-gradient(45deg, var(--rule-soft) 0 3px, transparent 3px 7px)',
+                  }}
+                />
+              </div>
+
+              <div className="text-ink-faint relative mt-1.5 h-4 font-mono text-[0.625rem]">
+                <span className="absolute left-0">$0</span>
+                <span
+                  className="absolute -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${(10 / CAP) * 100}%` }}
+                >
+                  $10 worst case
+                </span>
+                <span className="text-ink absolute right-0">${CAP} your cap</span>
+              </div>
+            </div>
+
+            <ul className="mt-8 grid gap-px bg-rule-soft border-rule-soft border sm:grid-cols-3">
+              {[
+                ['< 2s', 'stop takes effect in'],
+                ['nothing', 'a shift that filed nothing costs'],
+                ['yours', 'the folder, on any plan'],
+              ].map(([value, label]) => (
+                <li key={label} className="bg-panel p-4">
+                  <p className="numeric text-[1.25rem] leading-none">{value}</p>
+                  <p className="text-ink-faint mt-1.5 font-mono text-[0.625rem] tracking-[0.08em] uppercase">
+                    {label}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="display max-w-[18ch] text-xl leading-tight sm:text-2xl">
+              And five things it will never do.
+            </h3>
+
+            {/* The list nobody else publishes. This reader has been burned by
+                confident AI twice, and the only claim worth anything to them is
+                one that costs us something to make. */}
+            <dl className="mt-6">
+              {NOTS.map(([term, why]) => (
+                <div key={term} className="border-rule-soft border-t py-4">
+                  <dt className="flex items-baseline gap-2.5">
+                    <span
+                      aria-hidden
+                      className="mark mark-ring border-ink-faint translate-y-[1px]"
+                    />
+                    <span className="font-mono text-[0.75rem] tracking-[0.08em] uppercase">
+                      never {term}
+                    </span>
+                  </dt>
+                  <dd className="text-ink-soft mt-1.5 pl-[1.4rem] text-[0.9375rem] leading-relaxed">
+                    {why}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
       </div>
     </section>
   )
 }
 
 function Close() {
+  const canvas = useCanvases()
   return (
-    <section className="relative overflow-hidden">
-      {/* The Millet gets its prominent moment here, mirroring the hero. */}
-      <div
-        aria-hidden
-        className="absolute inset-y-0 right-0 hidden md:block"
-        style={{
-          width: 'min(38vw, 560px)',
-          clipPath: 'polygon(0 0, 100% 0, 100% 100%, 22% 100%)',
-        }}
-      >
-        <img
-          src={dandelions}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover object-[30%_45%]"
-        />
-      </div>
-
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden md:block">
-        <div
-          className="bg-wheat-gold absolute -top-16 right-[30vw] h-[16rem] w-[15rem] mix-blend-multiply"
-          style={{ opacity: 0.38, borderRadius: '42% 58% 38% 62% / 55% 40% 60% 45%' }}
-        />
-        <div className="bg-vg-sky absolute right-[26vw] bottom-8 size-14 rounded-full opacity-90" />
-        <div
-          className="border-sage absolute -bottom-10 right-[8vw] h-28 w-28 border-2"
-          style={{
-            opacity: 0.9,
-            clipPath: 'polygon(22% 8%, 70% 0%, 100% 42%, 82% 94%, 26% 100%, 0% 58%)',
-          }}
-        />
-      </div>
-
-      <Caption text="dandelions, millet, 1868" className="absolute right-0 bottom-0 hidden md:block" />
-
-      <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <h2 className="display max-w-2xl text-2xl leading-tight sm:text-3xl">
-          The next shift starts from what is still missing.
+    <Field which="narrow" focus="40% 55%" className="border-b-0">
+      <div className="panel mx-auto max-w-2xl p-8 text-center sm:p-12">
+        <h2 className="display mx-auto max-w-[18ch] text-2xl leading-tight sm:text-[2.1rem]">
+          Then you go and build it.
         </h2>
-        <p className="text-ink-soft mt-3 max-w-2xl text-[0.9375rem] leading-relaxed">
-          Those three lines become the agenda. You pick one and the team works on
-          it, or you set them going and see what they choose. You cap what the
-          company may spend, and you can stop it in the middle.
+        <p className="text-ink-soft mx-auto mt-4 max-w-[46ch] text-[1.0625rem] leading-[1.6]">
+          {HEADER.company} took {HEADER.minutes} minutes and ${HEADER.cost}. Yours
+          will be about your idea, and the folder is yours to take anywhere.
         </p>
-        <div className="mt-7 flex flex-wrap items-center gap-5">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-5">
           <a href="#top" className="btn btn-primary">
             start a company
           </a>
-          <Link to="/companies" className="link font-mono text-[0.8125rem]">
+          <Link to="/companies" className="link font-mono text-[0.75rem]">
             look at one that already ran
           </Link>
         </div>
+
+        {/* Every painting on the page, credited once, here. An unattributed
+            background is decoration; a labelled one is a choice — but a label
+            under each of them is a stutter. */}
+        <p className="border-rule-soft text-ink-faint mt-10 border-t pt-4 font-mono text-[0.5625rem] leading-relaxed tracking-[0.1em] uppercase">
+          {canvas.wideCaption} · {canvas.narrowCaption}
+        </p>
       </div>
-    </section>
+    </Field>
   )
 }

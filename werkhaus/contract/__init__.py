@@ -9,6 +9,7 @@ from werkhaus.contract.events import ShiftEvent, ShiftEventKind
 from werkhaus.contract.models import (
     Artifact,
     ArtifactKind,
+    Assumption,
     AttentionRequest,
     Budget,
     Charter,
@@ -17,6 +18,7 @@ from werkhaus.contract.models import (
     CompanyStatus,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Progress,
     PublicSnapshot,
     Role,
@@ -33,6 +35,7 @@ from werkhaus.contract.models import (
 __all__ = [
     "Artifact",
     "ArtifactKind",
+    "Assumption",
     "AttentionRequest",
     "Budget",
     "Charter",
@@ -42,6 +45,7 @@ __all__ = [
     "Decision",
     "Engine",
     "LedgerEntry",
+    "MoneyModel",
     "Progress",
     "PublicSnapshot",
     "Role",

@@ -502,6 +502,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/companies/{cid}/finances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Money Model
+         * @description The company's own money, which is not the same money as the ledger.
+         *
+         *     The ledger is what running the company has cost us so far, in dollars that
+         *     have actually left. This is what the business would earn if the assumptions
+         *     hold, in the currency the business would earn it in — a projection, never a
+         *     receipt, which is why it carries assumptions and no revenue figure.
+         */
+        get: operations["get_money_model_api_v1_companies__cid__finances_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/companies/{cid}/attention/{request_id}": {
         parameters: {
             query?: never;
@@ -841,6 +866,37 @@ export interface components {
          * @enum {string}
          */
         ArtifactKind: "doc" | "table" | "image" | "site" | "dataset";
+        /**
+         * Assumption
+         * @description One number the business rests on, and where that number came from.
+         *
+         *     Same three marks as an artifact, for the same reason: a founder cannot tell
+         *     a price read off a rival's pricing page from one somebody made up, and by
+         *     the time the difference matters they have already put it in a deck.
+         */
+        Assumption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "money" | "count" | "rate";
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "sourced" | "inferred" | "assumption";
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
         /**
          * AttentionRequest
          * @description The one user-blocking mechanism. Everything else runs unattended.
@@ -1394,6 +1450,61 @@ export interface components {
             verified: boolean;
             /** Note */
             note?: string | null;
+        };
+        /**
+         * MoneyModel
+         * @description What the business would earn, if every assumption in it holds.
+         *
+         *     **There is no revenue field here, on purpose.** A company with no customers
+         *     has no revenue, and a stored revenue number is indistinguishable from a
+         *     remembered one six weeks later. What is stored is the assumptions; the
+         *     projection is arithmetic done at the point of display, from those
+         *     assumptions, every time. So nobody — no employee, no engine, no future
+         *     version of this file — can record money that did not arrive.
+         *
+         *     Real money, when there is any, is a different kind and arrives from the
+         *     payment integration as a fact with a date on it. It will not be written
+         *     here.
+         *
+         *     The keys the projection understands:
+         *
+         *     ``price``           what one customer pays a month
+         *     ``customers``       customers at the end of month one
+         *     ``new_customers``   how many arrive each month after that
+         *     ``churn``           the share of them who leave each month
+         *     ``variable_cost``   what serving one customer costs a month
+         *     ``fixed_cost``      what the business costs a month before any customers
+         *
+         *     A missing key is not a zero. ``churn`` absent means nobody modelled churn,
+         *     which is a hole in the model and is displayed as one — the projection says
+         *     so rather than quietly assuming nobody ever leaves.
+         */
+        MoneyModel: {
+            /** Company Id */
+            company_id: string;
+            /** Shift Id */
+            shift_id?: string | null;
+            /** Role Id */
+            role_id?: string | null;
+            /**
+             * Currency
+             * @default EUR
+             */
+            currency: string;
+            /**
+             * Horizon Months
+             * @default 12
+             */
+            horizon_months: number;
+            /** Assumptions */
+            assumptions?: components["schemas"]["Assumption"][];
+            /** Artifact Id */
+            artifact_id?: string | null;
+            /**
+             * Filed At
+             * Format: date-time
+             */
+            filed_at: string;
         };
         /** NoteBody */
         NoteBody: {
@@ -2929,6 +3040,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LedgerEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_money_model_api_v1_companies__cid__finances_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoneyModel"] | null;
                 };
             };
             /** @description Validation Error */

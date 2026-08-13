@@ -98,7 +98,7 @@ export function Directory({ cid }: { cid: string }) {
           placeholder={
             total ? `Search ${total.toLocaleString()} servers…` : 'Search…'
           }
-          className="border-rule-soft block w-full border px-3 py-2 text-[0.875rem] outline-none"
+          className="border-rule-soft block w-full border px-3 py-2 text-[0.875rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
         />
         <p className="text-ink-faint mt-1 text-[0.75rem] leading-snug">
           Published by other people and untested by us. Connecting one hands it
@@ -208,7 +208,7 @@ function ConnectServer({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+            className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
           />
         </label>
 
@@ -218,7 +218,7 @@ function ConnectServer({
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
             />
           </label>
         ) : (
@@ -228,7 +228,7 @@ function ConnectServer({
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               placeholder="npx -y some-mcp-server"
-              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
             />
             <span className="text-ink-faint mt-1 block text-[0.75rem] leading-snug">
               Runs on the machine your shifts run on. The repository's readme
@@ -246,7 +246,7 @@ function ConnectServer({
               autoComplete="off"
               value={env[field.name] ?? ''}
               onChange={(e) => setEnv({ ...env, [field.name]: e.target.value })}
-              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none"
+              className="border-rule-soft mt-1 block w-full border px-2 py-1.5 font-mono text-[0.8125rem] outline-none focus-visible:ring-ring focus-visible:ring-2"
             />
             {field.description && (
               <span className="text-ink-faint mt-1 block text-[0.75rem] leading-snug">

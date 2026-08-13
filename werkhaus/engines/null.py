@@ -38,6 +38,7 @@ from werkhaus.contract.models import (
     CompanyId,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Objection,
     PublicSnapshot,
     ShareLink,
@@ -137,6 +138,9 @@ class NullEngine(Engine):
         self, cid: CompanyId, limit: int = 200
     ) -> list[LedgerEntry]:
         return []
+
+    async def get_money_model(self, cid: CompanyId) -> MoneyModel | None:
+        return None
 
     # --------------------------------------------------------------- user input
     async def answer_attention(

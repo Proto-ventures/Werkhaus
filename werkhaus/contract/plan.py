@@ -21,12 +21,19 @@ Maya works under: end the shift with something they can hold.
 holding an API key; asking them to get one is the trial. It belongs where the
 people who want it are — the second paid tier — and it buys a higher ceiling,
 not a discount.
+
+**The price lives here, next to what it buys.** One number, in one file, so the
+front page cannot advertise a price the engine would not charge —
+``tests/contract/test_pricing.py`` fails if the two ever disagree. Euros: the
+model bills upstream are dollars, but a company selling in Europe quoting its
+customers in dollars is asking them to do arithmetic before they can decide.
 """
 
 from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -54,6 +61,12 @@ class PlanLimits(BaseModel):
 
     plan: Plan
     label: str
+    price_eur: Decimal | None
+    """Per month. None means free — not "ask us"."""
+    price_year_eur: Decimal | None
+    """Paid once, up front. Cheaper per month, and it is cash now."""
+    pitch: str
+    """Who this row is for, in one line, in the founder's language."""
     shift_grant: int | None
     """Shifts on joining. None means uncounted."""
     shift_refill: int
@@ -78,6 +91,9 @@ PLANS: dict[Plan, PlanLimits] = {
     "free": PlanLimits(
         plan="free",
         label="Free",
+        price_eur=None,
+        price_year_eur=None,
+        pitch="Enough to leave with a folder you can show someone.",
         shift_grant=3,
         # Weekly, not daily: a shift a day is a working company, and a free
         # working company has no reason to become a paid one. Weekly is
@@ -94,8 +110,19 @@ PLANS: dict[Plan, PlanLimits] = {
     "studio": PlanLimits(
         plan="studio",
         label="Studio",
-        shift_grant=30,
-        shift_refill=30,
+        # Under every builder we are compared to, on purpose: they start at
+        # $16 and $25 and they build the thing, which is the part a founder can
+        # already get. Deciding what to build is the part they cannot, and it
+        # should not be the expensive half of their stack.
+        #
+        # Founding price. It rises when a shift ends with a live page rather
+        # than with documents, and whoever joined before then keeps this
+        # number — which is the whole reason to buy a thing that is unfinished.
+        price_eur=Decimal("12"),
+        price_year_eur=Decimal("96"),
+        pitch="A company you run every week, not a thing you tried once.",
+        shift_grant=12,
+        shift_refill=12,
         refill_days=30,
         byok=False,
         model_choice=False,
@@ -106,6 +133,9 @@ PLANS: dict[Plan, PlanLimits] = {
     "pro": PlanLimits(
         plan="pro",
         label="Pro",
+        price_eur=Decimal("29"),
+        price_year_eur=Decimal("240"),
+        pitch="Your own key, your own model, no ceiling on shifts.",
         shift_grant=None,
         shift_refill=0,
         refill_days=0,
@@ -162,6 +192,12 @@ class Allowance(Base):
 
     plan: Plan
     label: str
+    price_eur: Decimal | None
+    """Per month. None means free — not "ask us"."""
+    price_year_eur: Decimal | None
+    """Paid once, up front. Cheaper per month, and it is cash now."""
+    pitch: str
+    """Who this row is for, in one line, in the founder's language."""
     shifts_left: int | None
     shifts_used: int
     grant: int | None
@@ -183,6 +219,9 @@ def build_allowance(
     return Allowance(
         plan=limits.plan,
         label=limits.label,
+        price_eur=limits.price_eur,
+        price_year_eur=limits.price_year_eur,
+        pitch=limits.pitch,
         shifts_left=shifts_left(limits, start, now, used),
         shifts_used=used,
         grant=limits.shift_grant,

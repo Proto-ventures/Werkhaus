@@ -39,6 +39,7 @@ from werkhaus.contract.models import (
     Company,
     Decision,
     LedgerEntry,
+    MoneyModel,
     Objection,
     PublicSnapshot,
     ShareLink,
@@ -49,7 +50,7 @@ from werkhaus.contract.models import (
     VaultItem,
     WorkspaceFile,
 )
-from werkhaus.contract.plan import Allowance
+from werkhaus.contract.plan import PLANS, Allowance, PlanLimits
 
 router = APIRouter(prefix="/api/v1", tags=["werkhaus"])
 public_router = APIRouter(prefix="/public", tags=["public"])
@@ -108,6 +109,16 @@ async def health(engine: EngineDep) -> dict[str, object]:
 @router.get("/allowance", response_model=Allowance)
 async def get_allowance(engine: EngineDep) -> Allowance:
     return await engine.get_allowance()
+
+
+@router.get("/plans", response_model=list[PlanLimits])
+async def list_plans() -> list[PlanLimits]:
+    """What each plan costs and what it allows.
+
+    Engine-independent: this is the price list, not a fact about a company, and
+    it has to be answerable before anybody has one.
+    """
+    return list(PLANS.values())
 
 
 # -------------------------------------------------------------------- connections
@@ -359,6 +370,18 @@ async def list_ledger(
     cid: str, engine: EngineDep, limit: int = Query(200, ge=1, le=1000)
 ) -> list[LedgerEntry]:
     return await engine.list_ledger(cid, limit=limit)
+
+
+@router.get("/companies/{cid}/finances", response_model=MoneyModel | None)
+async def get_money_model(cid: str, engine: EngineDep) -> MoneyModel | None:
+    """The company's own money, which is not the same money as the ledger.
+
+    The ledger is what running the company has cost us so far, in dollars that
+    have actually left. This is what the business would earn if the assumptions
+    hold, in the currency the business would earn it in — a projection, never a
+    receipt, which is why it carries assumptions and no revenue figure.
+    """
+    return await engine.get_money_model(cid)
 
 
 # ----------------------------------------------------------------------- user input
