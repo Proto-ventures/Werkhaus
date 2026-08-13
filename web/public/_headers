@@ -1,0 +1,19 @@
+# A manifest served as application/octet-stream is one some browsers decline to
+# parse, which loses the install prompt and the theme colour for no reason.
+/site.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+
+# Read by agents and by people pasting a URL into a chat. text/plain with an
+# explicit charset stops the em dashes arriving as mojibake.
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+
+# Content-addressed filenames, so they can be cached until the heat death.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The cards change when the copy does, and the filename does not.
+/og/*
+  Cache-Control: public, max-age=86400
