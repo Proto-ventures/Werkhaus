@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  // Root by default, because in production FastAPI serves this from `/` and a
+  // build-time path is the one thing that cannot be fixed at runtime. Set
+  // WERKHAUS_BASE when publishing the page somewhere it lives under a prefix —
+  // GitHub Pages serves a project site from /<repo>/.
+  base: process.env.WERKHAUS_BASE ?? '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },

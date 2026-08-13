@@ -26,7 +26,11 @@ export default function App() {
       defaultTheme="light"
       enableSystem={false}
     >
-      <BrowserRouter>
+      {/* Served from the root when FastAPI serves it, and from a subpath when
+          the marketing page is published on its own. `BASE_URL` is whatever
+          Vite was built with, so there is one place to set it and the router
+          cannot disagree with the asset paths. */}
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Chrome />
         <Toaster position="bottom-right" />
       </BrowserRouter>
