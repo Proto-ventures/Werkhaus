@@ -1,5 +1,6 @@
 import {
   BrowserRouter,
+  Link,
   Navigate,
   Route,
   Routes,
@@ -9,6 +10,7 @@ import { ThemeProvider } from 'next-themes'
 import { Masthead } from '@/components/shell'
 import { Toaster } from '@/components/ui/sonner'
 import { CompanyList } from '@/routes/CompanyList'
+import { GuideIndex, GuidePage } from '@/routes/Guide'
 import { Landing } from '@/routes/Landing'
 import { Studio } from '@/routes/Studio'
 
@@ -60,6 +62,10 @@ function Chrome() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/companies" element={<CompanyList />} />
+          {/* One page per business worth asking about. Generated from
+              routes/seo.ts, along with their head tags and the sitemap. */}
+          <Route path="/for" element={<GuideIndex />} />
+          <Route path="/for/:slug" element={<GuidePage />} />
           {/* The interview lives in the studio chat now; the front-door box is
               the only way in. */}
           <Route path="/new" element={<Navigate to="/" replace />} />
@@ -76,6 +82,11 @@ function Footer() {
     <footer className="border-rule mt-auto border-t">
       <div className="text-ink-faint mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-4 font-mono text-[0.6875rem] sm:px-6">
         <span>werkhaus</span>
+        {/* The hub the guide pages hang off. A generated page nothing links to
+            is a page a crawler reaches last, if at all. */}
+        <Link to="/for" className="link">
+          what is worth building
+        </Link>
       </div>
     </footer>
   )

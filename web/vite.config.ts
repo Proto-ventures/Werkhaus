@@ -2,6 +2,7 @@ import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { seo } from './seo-plugin.js'
 
 export default defineConfig({
   // Root by default, because in production FastAPI serves this from `/` and a
@@ -9,7 +10,7 @@ export default defineConfig({
   // WERKHAUS_BASE when publishing the page somewhere it lives under a prefix —
   // GitHub Pages serves a project site from /<repo>/.
   base: process.env.WERKHAUS_BASE ?? '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), seo()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },

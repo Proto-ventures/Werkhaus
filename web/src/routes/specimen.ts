@@ -10,7 +10,7 @@
  * a product earns a reader who feels lied to.
  */
 
-import type { Assumption } from '@/lib/finance'
+import type { Assumption } from '../lib/finance.js'
 
 export type Mark = 'sourced' | 'inferred' | 'assumption'
 

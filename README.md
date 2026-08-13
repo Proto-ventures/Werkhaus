@@ -232,8 +232,9 @@ should not hit someone else's paywall.
 
 | | free | studio | pro |
 |---|---|---|---|
-| Shifts to start | 3 | 30 | uncounted |
-| Refill | 1 every 7 days | 30 every 30 days | — |
+| Price / month | free | €12 (€8 yearly) | €29 (€20 yearly) |
+| Shifts to start | 3 | 12 | uncounted |
+| Refill | 1 every 7 days | 12 every 30 days | — |
 | Bring your own key | no | no | **yes** |
 | Autonomy | balanced ±1 | all five | all five |
 

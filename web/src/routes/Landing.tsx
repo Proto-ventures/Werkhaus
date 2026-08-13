@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTheme } from 'next-themes'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { api, type ApiError } from '@/api/client'
 import { ShiftDiagram } from '@/components/diagram'
@@ -163,7 +163,11 @@ function Placard({
 function Hero() {
   const navigate = useNavigate()
   const canvas = useCanvases()
-  const [idea, setIdea] = useState('')
+  // Arriving from a guide page means the idea has already been chosen, so the
+  // box is not empty. Read once into state rather than held in the URL: the
+  // first keystroke is theirs, and it should not be fighting a query string.
+  const [params] = useSearchParams()
+  const [idea, setIdea] = useState(() => params.get('idea')?.slice(0, 400) ?? '')
   const [busy, setBusy] = useState(false)
   // A placeholder that types itself is indistinguishable from a box that came
   // pre-filled, which makes one example business look like the only business
