@@ -117,18 +117,18 @@ function pages(): Page[] {
       GUIDE_INDEX.h1,
     )}</h1><ul class="mt-10">${GUIDES.map(
       (g) =>
-        `<li class="py-2"><a class="link" href="/for/${g.slug}">${esc(g.h1)}</a></li>`,
+        `<li class="py-2"><a class="link" href="/for/${g.slug}/">${esc(g.h1)}</a></li>`,
     ).join('')}</ul></div>`,
     jsonLd: [
       {
         '@context': 'https://schema.org',
         '@type': 'CollectionPage',
         name: GUIDE_INDEX.title,
-        url: `${SITE}/for`,
+        url: `${SITE}/for/`,
         hasPart: GUIDES.map((g) => ({
           '@type': 'WebPage',
           name: g.title,
-          url: `${SITE}/for/${g.slug}`,
+          url: `${SITE}/for/${g.slug}/`,
         })),
       },
     ],
@@ -144,9 +144,9 @@ function pages(): Page[] {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
         name: guide.title,
-        url: `${SITE}/for/${guide.slug}`,
+        url: `${SITE}/for/${guide.slug}/`,
         description: guide.description,
-        isPartOf: { '@type': 'CollectionPage', url: `${SITE}/for` },
+        isPartOf: { '@type': 'CollectionPage', url: `${SITE}/for/` },
         about: guide.audience,
       },
       {
@@ -158,7 +158,7 @@ function pages(): Page[] {
             '@type': 'ListItem',
             position: 2,
             name: 'What is worth building',
-            item: `${SITE}/for`,
+            item: `${SITE}/for/`,
           },
           { '@type': 'ListItem', position: 3, name: guide.h1 },
         ],
@@ -179,8 +179,19 @@ function pages(): Page[] {
   return [front, hub, ...guides, companies]
 }
 
+/**
+ * The address that actually answers 200.
+ *
+ * Netlify serves a directory index and 301s the slashless form onto it, so a
+ * canonical without the slash points at a redirect — which is not wrong, and is
+ * one hop of doubt in the one tag whose whole job is removing doubt.
+ */
+function canonical(route: string): string {
+  return route ? `${SITE}/${route}/` : `${SITE}/`
+}
+
 function render(shell: string, page: Page): string {
-  const url = page.route ? `${SITE}/${page.route}` : `${SITE}/`
+  const url = canonical(page.route)
   const head = [
     `<title>${esc(page.title)}</title>`,
     `<meta name="description" content="${esc(page.description)}" />`,
@@ -214,7 +225,7 @@ function sitemap(list: Page[]): string {
   const urls = list
     .filter((p) => !p.noindex)
     .map((p) => {
-      const url = p.route ? `${SITE}/${p.route}` : `${SITE}/`
+      const url = canonical(p.route)
       // The front page and the hub are the ones worth recrawling often; a
       // guide changes when somebody edits it, which is rarely.
       const priority = p.route === '' ? '1.0' : p.route === 'for' ? '0.8' : '0.6'
