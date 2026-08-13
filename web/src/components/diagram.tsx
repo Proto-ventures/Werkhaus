@@ -601,7 +601,10 @@ export function ShiftDiagram({
           aria-hidden
           // Left-aligned, so the slack the scale leaves goes to the right,
           // where the hero's canvas comes in over the column.
-          className="absolute top-0 left-0 origin-top-left"
+          // print:hidden because a tilted 3D deck of miniatures is decoration
+          // on paper, and the print stylesheet no longer removes everything
+          // marked aria-hidden — that rule was also deleting the marks.
+          className="absolute top-0 left-0 origin-top-left print:hidden"
           style={{
             width: SCENE_W,
             height: SCENE_H,

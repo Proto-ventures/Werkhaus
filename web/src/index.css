@@ -308,6 +308,16 @@
   .btn-primary {
     @apply bg-ink text-paper border-ink;
   }
+  /* A disabled primary keeps the ink ground unless this says otherwise, which
+     leaves the faint label from `.btn:disabled` sitting on it at 3.14:1 in
+     light and 2.06:1 after dark — below the 4.5:1 this product treats as
+     binding, and below even the 3:1 floor for a control. Worse, it still
+     reads as a live button. Dropping the ground puts the label on whatever
+     sheet it sits on (4.65-7.21:1 across paper and panel) and makes the
+     control look unavailable, which is what it is. */
+  .btn-primary:disabled {
+    @apply border-rule-soft bg-transparent text-ink-faint;
+  }
   .btn-primary:hover:not(:disabled) {
     @apply bg-blue border-blue text-white;
   }
@@ -417,11 +427,29 @@
    Colour still carries meaning here, so it is kept; what goes is the decoration
    and anything that only makes sense on a screen. */
 @media print {
-  /* The collage is aria-hidden for the same reason it is unprintable: it is
-     not information. */
+  /* The paintings are aria-hidden for the same reason they are unprintable:
+     they are not information. Scoped to imagery only — the rule used to be a
+     bare `[aria-hidden='true']`, which also caught every provenance mark on
+     the page, because a mark is hidden from a screen reader that already gets
+     the word beside it. Printing a research document with its marks stripped
+     turns sourced claims into unattributed ones, which is the one failure this
+     product exists to prevent. */
   [aria-hidden='true'] img,
-  [aria-hidden='true'] {
+  img[aria-hidden='true'] {
     display: none !important;
+  }
+
+  /* And the marks come through as themselves. Print engines drop background
+     colour by default, which would flatten a filled square into an empty box —
+     erasing the exact distinction between "we read this" and "we guessed", and
+     doing it silently. */
+  .mark {
+    display: inline-block !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .mark-triangle {
+    display: block !important;
   }
 
   body {

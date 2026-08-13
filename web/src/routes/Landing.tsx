@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -168,6 +168,7 @@ function Hero() {
   // first keystroke is theirs, and it should not be fighting a query string.
   const [params] = useSearchParams()
   const [idea, setIdea] = useState(() => params.get('idea')?.slice(0, 400) ?? '')
+  const box = useRef<HTMLTextAreaElement>(null)
   const [busy, setBusy] = useState(false)
   // A placeholder that types itself is indistinguishable from a box that came
   // pre-filled, which makes one example business look like the only business
@@ -183,7 +184,19 @@ function Hero() {
   )
 
   async function begin() {
-    if (!idea.trim()) return
+    // An empty box is not an error, it is an unfinished sentence — so the
+    // button stays live and says what is missing, in the panel that already
+    // exists for the other three ways this can fail. It used to sit disabled
+    // instead, which read as a working button, said nothing when pressed, and
+    // was the first thing every visitor saw.
+    if (!idea.trim()) {
+      setFailed({
+        message: 'Tell it what the business is first.',
+        hint: 'One sentence is enough — what it sells, and who to.',
+      })
+      box.current?.focus()
+      return
+    }
     setBusy(true)
     setFailed(null)
     try {
@@ -259,8 +272,15 @@ function Hero() {
 
           <div className="border-rule mt-9 border">
             <textarea
+              ref={box}
               value={idea}
-              onChange={(e) => setIdea(e.target.value)}
+              onChange={(e) => {
+                setIdea(e.target.value)
+                // The complaint was "you have not said what it is". The first
+                // keystroke answers it, so the panel goes then rather than
+                // sitting there contradicting the box above it.
+                if (failed) setFailed(null)
+              }}
               rows={3}
               placeholder={placeholder}
               className="placeholder:text-ink-faint bg-panel block w-full resize-none px-4 py-4 text-[0.9375rem] leading-relaxed outline-none focus-visible:ring-ring focus-visible:ring-2"
@@ -294,7 +314,9 @@ function Hero() {
               <button
                 type="button"
                 className="btn btn-primary ml-auto"
-                disabled={busy || !idea.trim()}
+                // Only while a company is actually being created. Disabling on
+                // an empty box is what made the page's one button mute.
+                disabled={busy}
                 onClick={begin}
               >
                 {busy ? 'setting up' : 'start the company'}
