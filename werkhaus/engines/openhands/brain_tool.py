@@ -80,6 +80,10 @@ class ShiftContext:
     last_activity_emit: float = 0.0
     # The run-limit code the SDK reported, if any ("MaxBudgetReached", ...).
     error_code: str | None = None
+    unreadable_reply: bool = False
+    """The model answered with something shaped like a tool call but written as
+    prose, so the harness could not act on it. Seen with models that have their
+    own <TOOLCALL> convention when the provider does not translate it."""
     # Mirror of the live activity line, read by CompanyRuntime.company().
     set_activity: Any = None  # Callable[[str | None], None] | None
 

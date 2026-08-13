@@ -318,14 +318,24 @@ def test_running_out_of_time_reads_differently_from_breaking() -> None:
     assert shift_mod._failure_reason(ShiftStatus.COMPLETED, ctx(None)) is None
 
 
-def test_only_running_out_of_turns_buys_a_second_run() -> None:
-    """The reserve is for an employee who ran out of time mid-sentence. A halt,
-    a crash or a spent budget all mean the shift is over, and paying a model to
-    summarise for a stopped employee would be theatre on the founder's money."""
+def test_a_shift_that_filed_nothing_buys_a_second_run() -> None:
+    """The reserve is for a shift that has produced nothing and is not stopped.
+
+    It used to fire only on turn exhaustion, which was too narrow. Observed in
+    production: a model answered with its tool call written out as prose, the
+    loop read that as a plain final message and stopped, and the shift closed
+    in four minutes having read no pages and filed no documents — while still
+    charging for the calls. A premature finish and a turn exhaustion are the
+    same thing from the founder's side.
+
+    A halt or a spent budget still buy nothing: those mean the shift is
+    genuinely over, and paying a model to summarise for a stopped employee is
+    theatre on the founder's money.
+    """
     import threading
 
     from werkhaus.engines.openhands.brain_tool import ShiftContext
-    from werkhaus.engines.openhands.shift import _out_of_time_empty_handed
+    from werkhaus.engines.openhands.shift import _empty_handed
 
     class _Artifact:
         produced_in_shift = "co_x/0001"
@@ -334,7 +344,7 @@ def test_only_running_out_of_turns_buys_a_second_run() -> None:
         def __init__(self, artifacts) -> None:
             self.state = type("S", (), {"artifacts": artifacts})()
 
-    def ctx(code: str | None, stopped: bool = False) -> ShiftContext:
+    def ctx(stopped: bool = False) -> ShiftContext:
         out = ShiftContext(
             company_id="co_x",
             shift_id="co_x/0001",
@@ -344,7 +354,6 @@ def test_only_running_out_of_turns_buys_a_second_run() -> None:
             bus=None,  # type: ignore[arg-type]
             stopped=threading.Event(),
         )
-        out.error_code = code
         if stopped:
             out.stopped.set()
         return out
@@ -352,16 +361,57 @@ def test_only_running_out_of_turns_buys_a_second_run() -> None:
     empty, filed = _Brain({}), _Brain({"a": _Artifact()})
     sid = "co_x/0001"
 
-    assert _out_of_time_empty_handed(ctx("MaxIterationsReached"), empty, sid, False)
+    # Nothing filed and still running: worth one more attempt, however the
+    # first run ended.
+    assert _empty_handed(ctx(), empty, sid, False)
     # Already filed: she has nothing left to say.
-    assert not _out_of_time_empty_handed(ctx("MaxIterationsReached"), filed, sid, False)
-    # Budget gone, halted, or broken: the shift is genuinely over.
-    assert not _out_of_time_empty_handed(ctx("MaxIterationsReached"), empty, sid, True)
-    assert not _out_of_time_empty_handed(
-        ctx("MaxIterationsReached", stopped=True), empty, sid, False
-    )
-    assert not _out_of_time_empty_handed(ctx("MaxBudgetReached"), empty, sid, False)
-    assert not _out_of_time_empty_handed(ctx(None), empty, sid, False)
+    assert not _empty_handed(ctx(), filed, sid, False)
+    # Budget gone or halted: genuinely over.
+    assert not _empty_handed(ctx(), empty, sid, True)
+    assert not _empty_handed(ctx(stopped=True), empty, sid, False)
+
+
+def test_a_shift_that_produced_nothing_is_not_reported_as_finished() -> None:
+    """Two shifts were reported "finished" after four minutes each, having read
+    no pages and filed no documents, and were charged for. The SDK's execution
+    status only describes how the loop ended; it can end perfectly cleanly
+    having produced nothing. Judging the shift on its output instead is the
+    difference between an honest failure and the theatre the stub engine was
+    deleted for.
+    """
+    import threading
+
+    from werkhaus.contract.models import ShiftStatus
+    from werkhaus.engines.openhands.brain_tool import ShiftContext
+    from werkhaus.engines.openhands.shift import _classify, _failure_reason
+
+    class _Conversation:
+        state = type("S", (), {"execution_status": "finished"})()
+
+    def ctx(unreadable: bool = False) -> ShiftContext:
+        out = ShiftContext(
+            company_id="co_x",
+            shift_id="co_x/0001",
+            role_id="researcher",
+            shift_number=1,
+            brain=None,  # type: ignore[arg-type]
+            bus=None,  # type: ignore[arg-type]
+            stopped=threading.Event(),
+        )
+        out.unreadable_reply = unreadable
+        return out
+
+    conv = _Conversation()
+    # A clean finish that produced something is a completed shift.
+    assert _classify(conv, ctx(), False, empty=False) is ShiftStatus.COMPLETED
+    # The same clean finish having produced nothing is not.
+    assert _classify(conv, ctx(), False, empty=True) is ShiftStatus.FAILED
+
+    # And the founder is told which failure it was.
+    generic = _failure_reason(ShiftStatus.FAILED, ctx())
+    assert generic and "our failure" in generic
+    unreadable = _failure_reason(ShiftStatus.FAILED, ctx(unreadable=True))
+    assert unreadable and "different model" in unreadable
 
 
 def test_the_run_budget_is_cumulative_across_runs_despite_its_name() -> None:

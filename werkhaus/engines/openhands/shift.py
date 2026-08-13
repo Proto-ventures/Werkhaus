@@ -166,11 +166,10 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
                 conversation.send_message(_kickoff(shift.agenda, brain, number))
                 budget_hit = await watch.run()
 
-                if _out_of_time_empty_handed(ctx, brain, sid, budget_hit):
-                    # She didn't run out of budget or break; she ran out of
-                    # turns while still reading. Stop the research and buy the
-                    # write-up with the turns held back for exactly this.
-                    logger.info("shift %s ran out of research turns; wrapping up", sid)
+                if _empty_handed(ctx, brain, sid, budget_hit):
+                    # Nothing was filed and the shift is not stopped: buy one
+                    # more attempt with the turns held back for exactly this.
+                    logger.info("shift %s has filed nothing; wrapping up", sid)
                     ctx.error_code = None
                     conversation.max_iteration_per_run = WRAP_UP_ITERATIONS
                     conversation.send_message(WRAP_UP)
@@ -180,7 +179,9 @@ async def run_shift(engine, company: OpenHandsCompany, sid: ShiftId) -> None:
                 watch.close()
 
         # ----------------------------------------------------------- closing
-        status = _classify(conversation, ctx, budget_hit)
+        status = _classify(
+            conversation, ctx, budget_hit, empty=filed_nothing(brain, sid)
+        )
         _phase(company, sid, ShiftPhase.CLOSING, "Writing up the shift.")
 
         cost = cents(run_cost)
@@ -369,20 +370,31 @@ class _Watchdog:
             ).start()
 
 
-def _out_of_time_empty_handed(
-    ctx: ShiftContext, brain: BrainStore, sid: ShiftId, budget_hit: bool
-) -> bool:
-    """Did this shift run out of turns while still holding nothing?
-
-    Only turn exhaustion earns a second run. A halt, a crash or a spent budget
-    all mean the shift is genuinely over, and spending more of the founder's
-    money to ask a stopped employee for a summary would be theatre.
-    """
-    if budget_hit or ctx.stopped.is_set() or ctx.error_code != "MaxIterationsReached":
-        return False
+def filed_nothing(brain: BrainStore, sid: ShiftId) -> bool:
+    """Did this shift end with nothing the founder can hold?"""
     return not any(
         a.produced_in_shift == sid for a in brain.state.artifacts.values()
     )
+
+
+def _empty_handed(
+    ctx: ShiftContext, brain: BrainStore, sid: ShiftId, budget_hit: bool
+) -> bool:
+    """Should the reserve be spent trying to get a document out of this shift?
+
+    Originally this only fired on turn exhaustion. That was too narrow: a model
+    can also *finish* having done nothing — it emits something the SDK cannot
+    read as a tool call, the loop sees a plain final message and stops, and the
+    shift closes in four minutes having filed nothing. Turn exhaustion and a
+    premature finish are the same problem from the founder's side, so both
+    earn the second run.
+
+    A halt or a spent budget still do not. Those mean the shift is genuinely
+    over, and paying a model to summarise for a stopped employee is theatre.
+    """
+    if budget_hit or ctx.stopped.is_set():
+        return False
+    return filed_nothing(brain, sid)
 
 
 def _phase(
@@ -442,13 +454,26 @@ def _classify(
     conversation: LocalConversation,
     ctx: ShiftContext,
     budget_hit: bool,
+    empty: bool = False,
 ) -> ShiftStatus:
+    """What actually happened, judged on the output rather than the loop.
+
+    ``empty`` is the important one. The SDK's execution status only says how
+    the loop ended, and a loop can end perfectly cleanly having produced
+    nothing — which is how two shifts came to be reported as "finished" after
+    four minutes each, having read no pages and filed no documents, while
+    still charging for the model calls. From the founder's side that is not a
+    completed shift, and calling it one is the kind of theatre the stub engine
+    was deleted for.
+    """
     if budget_hit or ctx.error_code == "MaxBudgetReached":
         return ShiftStatus.BUDGET_EXCEEDED
     status = str(getattr(conversation.state, "execution_status", "")).lower()
     if ctx.error_code == "MaxIterationsReached":
         return ShiftStatus.FAILED
     if "stuck" in status or "error" in status:
+        return ShiftStatus.FAILED
+    if empty:
         return ShiftStatus.FAILED
     return ShiftStatus.COMPLETED
 
@@ -462,12 +487,25 @@ def _failure_reason(status: ShiftStatus, ctx: ShiftContext | None) -> str | None
     """
     if status is not ShiftStatus.FAILED:
         return None
+    if ctx is not None and ctx.unreadable_reply:
+        # The model answered, but in a shape the harness cannot act on. There
+        # is nothing the founder can do about that and no point implying there
+        # is, so it says what happened and points at the one setting that
+        # changes it.
+        return (
+            "The service the team thinks with kept answering in a form we "
+            "could not act on, so nothing got done. Try a different model in "
+            "settings; nothing was lost."
+        )
     if ctx is not None and ctx.error_code == "MaxIterationsReached":
         return (
             "There was more to do than fits in one shift. The work so far is "
             "saved — another shift picks up where this one stopped."
         )
-    return "Maya couldn't finish this one. The work so far is saved."
+    return (
+        "This shift ended without producing anything. That is our failure, "
+        "not yours, and nothing that was already done was lost."
+    )
 
 
 def _exception_reason(exc: BaseException) -> str:

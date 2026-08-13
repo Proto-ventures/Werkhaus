@@ -106,6 +106,17 @@ class Narrator:
             self._activity(f"{ctx.name} hit a problem and is trying another way.")
         elif isinstance(event, MessageEvent) and event.source == "agent":
             text = _message_text(event)
+            # A model that writes its tool call out as prose ends the run: the
+            # loop sees a plain final message and stops, and the shift closes
+            # having done nothing. It is invisible unless somebody looks for
+            # it, so we look for it.
+            if text and _TOOLCALL_AS_PROSE.search(text):
+                ctx.unreadable_reply = True
+                logger.warning(
+                    "model wrote a tool call as prose; the harness cannot act "
+                    "on it and the run will end here"
+                )
+                return
             if text:
                 said = scrub_sentence(text)
                 if said:
@@ -214,6 +225,11 @@ class Narrator:
         ctx.bus.emit_threadsafe(
             K.ROLE_ACTIVITY, text, shift_id=ctx.shift_id, role_id=ctx.role_id
         )
+
+
+_TOOLCALL_AS_PROSE = re.compile(
+    r"<\s*(tool_?call|function_?call|tool_use)", re.IGNORECASE
+)
 
 
 def _message_text(event: MessageEvent) -> str:
