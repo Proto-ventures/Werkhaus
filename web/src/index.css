@@ -294,9 +294,11 @@
      hairline, square. whitespace-nowrap because a label broken across two
      lines reads as a button that failed to render. */
   .btn {
-    @apply border-rule text-ink font-mono inline-flex items-center justify-center
-      gap-2 border bg-transparent px-4 py-2 text-[0.75rem] tracking-[0.08em]
-      uppercase whitespace-nowrap transition-colors;
+    /* min-h-11 because every primary on the page measured 36px tall — under
+       the 44px a thumb needs, on the surface where the decision is made. */
+    @apply border-rule text-ink font-mono inline-flex min-h-11 items-center
+      justify-center gap-2 border bg-transparent px-4 py-2 text-[0.75rem]
+      tracking-[0.08em] uppercase whitespace-nowrap transition-colors;
     @apply focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none;
   }
   .btn:hover:not(:disabled) {
@@ -362,6 +364,17 @@
 
   /* Graph paper. The ground a technical plate is drawn on, and the only
      texture in the product. */
+  /* The hatched worst-case band on the spend meter. As a --rule-soft hatch it
+     vanished against the dark panel, collapsing a three-zone instrument into
+     two; --line reads on both grounds. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--line) 0 3px,
+      transparent 3px 7px
+    );
+  }
+
   .plate {
     background-color: var(--panel);
     background-image:

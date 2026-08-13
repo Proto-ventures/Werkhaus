@@ -85,7 +85,7 @@ function Footer() {
         <span>werkhaus</span>
         {/* The hub the guide pages hang off. A generated page nothing links to
             is a page a crawler reaches last, if at all. */}
-        <Link to="/for" className="link">
+        <Link to="/for" className="link -m-3 inline-flex min-h-11 items-center p-3">
           what is worth building
         </Link>
       </div>

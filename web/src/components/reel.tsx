@@ -393,7 +393,7 @@ export function ShiftReel({ className }: { className?: string }) {
               setT(0)
               setPlaying(true)
             }}
-            className="text-link shrink-0 font-mono text-[0.6875rem] underline"
+            className="text-link -m-3 inline-flex min-h-11 shrink-0 items-center p-3 font-mono text-[0.6875rem] underline"
           >
             {done ? 'play it again' : 'playing'}
           </button>

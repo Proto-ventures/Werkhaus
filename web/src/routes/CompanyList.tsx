@@ -18,7 +18,13 @@ export function CompanyList() {
   const [companies, setCompanies] = useState<Company[] | null>(null)
 
   useEffect(() => {
-    void api.listCompanies().then(setCompanies)
+    // Served statically there is no API, and an uncaught rejection leaves a
+    // stranger on "loading..." forever — reached from a link on the front page
+    // that promises a finished company.
+    void api
+      .listCompanies()
+      .then(setCompanies)
+      .catch(() => setCompanies([]))
   }, [])
 
   return (

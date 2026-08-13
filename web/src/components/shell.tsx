@@ -4,6 +4,7 @@ import { useReducedMotion } from 'motion/react'
 import { useTheme } from 'next-themes'
 import { Link, NavLink } from 'react-router-dom'
 import { Wordmark } from '@/components/bauhaus'
+import { startHere } from '@/routes/Landing'
 
 /** Plain centred container, for pages with no company in scope. */
 export function Page({ children }: { children: React.ReactNode }) {
@@ -55,7 +56,7 @@ function ThemeToggle() {
       onClick={() => flip(dark ? 'light' : 'dark')}
       aria-label={dark ? 'Switch to the light theme' : 'Switch to the dark theme'}
       title={dark ? 'light' : 'dark'}
-      className="focus-visible:ring-ring hover:bg-secondary flex size-7 items-center justify-center transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="focus-visible:ring-ring hover:bg-secondary -m-2 flex size-11 items-center justify-center transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       {ready && (
         <span
@@ -76,7 +77,7 @@ export function Masthead({ minimal = false }: { minimal?: boolean }) {
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:px-6">
         <Link
           to="/"
-          className="focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring -m-2 inline-flex min-h-11 items-center p-2 focus-visible:ring-2 focus-visible:outline-none"
         >
           <Wordmark />
         </Link>
@@ -86,11 +87,19 @@ export function Masthead({ minimal = false }: { minimal?: boolean }) {
             <>
               <NavLink
                 to="/companies"
-                className="eyebrow text-ink-soft hover:text-ink focus-visible:ring-ring hidden focus-visible:ring-2 focus-visible:outline-none sm:inline"
+                className="eyebrow text-ink-soft hover:text-ink focus-visible:ring-ring -m-3 hidden min-h-11 items-center p-3 focus-visible:ring-2 focus-visible:outline-none sm:inline-flex"
               >
                 companies
               </NavLink>
-              <Link to="/" className="btn py-1 text-[0.8125rem]">
+              {/* On the landing route this was a link to the page it was
+                  already on. Now it does what it says. */}
+              <Link
+                to="/"
+                onClick={(e) => {
+                  if (location.pathname === '/' && startHere()) e.preventDefault()
+                }}
+                className="btn py-1 text-[0.8125rem]"
+              >
                 start one
               </Link>
             </>

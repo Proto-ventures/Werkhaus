@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { toast } from 'sonner'
 import { api, type ApiError } from '@/api/client'
 import { ShiftDiagram } from '@/components/diagram'
 import { Papers } from '@/components/papers'
@@ -51,14 +50,31 @@ export function Landing() {
           what does it cost and what won't it do. */}
       <Hero />
       <Reel />
-      <Leaves />
       <Marks />
+      <Leaves />
       <Objections />
       <Roster />
       <Pricing />
       <Close />
     </>
   )
+}
+
+/**
+ * The one way back to the box.
+ *
+ * Four separate controls promised to start a company and none of them worked:
+ * the masthead button was a Link to the route it was already on, and the two
+ * `#top` anchors landed half a screen above the textarea without focusing it.
+ * A page that spends seven thousand pixels building intent has to have a door.
+ */
+export function startHere() {
+  const box = document.getElementById('idea-box')
+  if (!box) return false
+  box.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  // After the scroll, or the browser fights the focus and jumps twice.
+  window.setTimeout(() => box.focus({ preventScroll: true }), 320)
+  return true
 }
 
 const IDEAS = [
@@ -205,7 +221,6 @@ function Hero() {
     } catch (e) {
       const failure = describeFailure(e)
       setFailed(failure)
-      toast.error(failure.message)
       setBusy(false)
     }
   }
@@ -221,7 +236,7 @@ function Hero() {
           contrast problem you can only ever half-solve, and this way the
           paintings can run at full strength instead of being turned down to
           make room. Below xl there is no room for a margin, so they go. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden xl:block">
+      <div aria-hidden className="pointer-events-none absolute inset-0 hidden lg:block">
         <img
           src={canvas.wide}
           alt=""
@@ -272,6 +287,7 @@ function Hero() {
 
           <div className="border-rule mt-9 border">
             <textarea
+              id="idea-box"
               ref={box}
               value={idea}
               onChange={(e) => {
@@ -305,7 +321,7 @@ function Hero() {
                   <button
                     type="button"
                     onClick={() => setExample((n) => n + 1)}
-                    className="text-link hidden font-mono text-[0.6875rem] whitespace-nowrap underline lg:inline"
+                    className="text-link -m-3 inline-flex min-h-11 items-center p-3 font-mono text-[0.6875rem] whitespace-nowrap underline"
                   >
                     another example
                   </button>
@@ -712,7 +728,7 @@ function Pricing() {
                 onClick={() => setYearly(mode === 'yearly')}
                 aria-pressed={yearly === (mode === 'yearly')}
                 className={cn(
-                  'focus-visible:ring-ring px-4 py-2 font-mono text-[0.6875rem] tracking-[0.08em] uppercase focus-visible:ring-2 focus-visible:outline-none',
+                  'focus-visible:ring-ring inline-flex min-h-11 items-center px-4 font-mono text-[0.6875rem] tracking-[0.08em] uppercase focus-visible:ring-2 focus-visible:outline-none',
                   yearly === (mode === 'yearly')
                     ? 'bg-ink text-paper'
                     : 'text-ink-soft hover:bg-secondary',
@@ -770,9 +786,13 @@ function Pricing() {
                 <ul className="mt-6 flex-1 space-y-2.5">
                   {tier.gets.map((line) => (
                     <li key={line} className="flex items-baseline gap-2.5">
+                      {/* A rule, not a mark. Square and ring mean sourced and
+                          guessed; spending them on feature bullets three
+                          sections after the page teaches that is how an
+                          alphabet stops meaning anything. */}
                       <span
                         aria-hidden
-                        className="mark mark-square bg-inferred !size-1.5 translate-y-[1px]"
+                        className="bg-rule mt-[0.6em] h-px w-2 shrink-0"
                       />
                       <span className="text-ink-soft text-[0.875rem] leading-snug">
                         {line}
@@ -782,6 +802,9 @@ function Pricing() {
                 </ul>
 
                 <a
+                  onClick={(e) => {
+                    if (tier.price === null && startHere()) e.preventDefault()
+                  }}
                   href={tier.price === null ? '#top' : mail(tier.label)}
                   className={cn('btn mt-7 w-full', tier.featured ? 'btn-primary' : '')}
                 >
@@ -819,9 +842,13 @@ function Pricing() {
         </p>
 
         {/* ------------------------------------------------ against the others */}
-        <h3 className="display mt-16 max-w-[26ch] text-xl leading-tight sm:text-2xl">
-          You are probably already paying for one of these.
+        <h3 className="display mt-16 max-w-[30ch] text-xl leading-tight sm:text-2xl">
+          They build what you tell them to build. We are the part that works
+          out what to tell them.
         </h3>
+        <p className="text-ink-soft mt-3 max-w-[52ch] text-[1rem] leading-relaxed">
+          You are probably already paying for one of these.
+        </p>
         <table className="mt-6 w-full border-collapse text-left">
           <thead>
             <tr className="text-ink-faint font-mono text-[0.625rem] tracking-[0.1em] uppercase">
@@ -864,8 +891,7 @@ function Pricing() {
           </tbody>
         </table>
         <p className="text-ink-faint mt-3 font-mono text-[0.625rem] leading-relaxed">
-          {RIVALS_CHECKED} · they build what you tell them to build. we are the
-          part that works out what to tell them.
+          {RIVALS_CHECKED}
         </p>
 
         {/* ------------------------------------------------------ the cap, and
@@ -876,12 +902,21 @@ function Pricing() {
             <h3 className="display max-w-[18ch] text-xl leading-tight sm:text-2xl">
               And a cap you set, not one we promise.
             </h3>
+            {/* Without this the page invites an arithmetic it then loses:
+                twelve shifts at four dollars against twelve euros a month.
+                Whose money the meter is showing is the whole answer. */}
+            <p className="text-ink-soft mt-4 max-w-[46ch] text-[0.9375rem] leading-relaxed">
+              That is what the thinking costs, not what you pay. On Studio the
+              model bill is ours and the cap is yours — it exists so a shift you
+              walked away from cannot surprise you. On Pro the bill is yours, at
+              cost, which is what the lower price buys.
+            </p>
 
             <div className="mt-6">
               <div className="flex items-baseline gap-3">
                 <span className="numeric text-[2.25rem] leading-none">$4</span>
                 <span className="text-ink-faint font-mono text-[0.6875rem] tracking-[0.1em] uppercase">
-                  what one shift spends on thinking
+                  a typical shift, against the cap you set
                 </span>
               </div>
 
@@ -891,12 +926,10 @@ function Pricing() {
                   style={{ width: `${(4 / CAP) * 100}%` }}
                 />
                 <div
-                  className="border-ink absolute inset-y-0 border-r"
+                  className="border-ink hatch absolute inset-y-0 border-r"
                   style={{
                     left: `${(4 / CAP) * 100}%`,
                     width: `${(6 / CAP) * 100}%`,
-                    backgroundImage:
-                      'repeating-linear-gradient(45deg, var(--rule-soft) 0 3px, transparent 3px 7px)',
                   }}
                 />
               </div>
@@ -941,10 +974,9 @@ function Pricing() {
               {NOTS.map(([term, why]) => (
                 <div key={term} className="border-rule-soft border-t py-4">
                   <dt className="flex items-baseline gap-2.5">
-                    <span
-                      aria-hidden
-                      className="mark mark-ring border-ink-faint translate-y-[1px]"
-                    />
+                    {/* Not the assumption ring: these are the claims the
+                        product is most certain about. */}
+                    <span aria-hidden className="bg-rule mt-[0.55em] h-px w-2.5 shrink-0" />
                     <span className="font-mono text-[0.75rem] tracking-[0.08em] uppercase">
                       never {term}
                     </span>
@@ -975,10 +1007,17 @@ function Close() {
           will be about your idea, and the folder is yours to take anywhere.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-5">
-          <a href="#top" className="btn btn-primary">
+          <a
+            href="#top"
+            onClick={(e) => startHere() && e.preventDefault()}
+            className="btn btn-primary"
+          >
             start a company
           </a>
-          <Link to="/companies" className="link font-mono text-[0.75rem]">
+          <Link
+            to="/companies"
+            className="link -m-3 inline-flex min-h-11 items-center p-3 font-mono text-[0.75rem]"
+          >
             look at one that already ran
           </Link>
         </div>

@@ -592,6 +592,10 @@ export function ShiftDiagram({
         aria-label={`The studio as a deck of five pages: ${PAGES.map((p) => p.label).join(', ')}. Closed, they are one window.`}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
+        // The caption says "tap to take it apart" and only mouse and focus
+        // were bound, so a phone could open the deck and then had no way to
+        // close it again.
+        onClick={() => setOpen((o) => !o)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         className="focus-visible:ring-ring relative w-full focus-visible:ring-2 focus-visible:outline-none"
