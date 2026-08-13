@@ -35,6 +35,12 @@ interface Page {
   noindex?: boolean
   /** schema.org, already stringified. */
   jsonLd?: object[]
+  /**
+   * The card a link preview shows, under /og/. Rendered from the site's own
+   * stylesheet and fonts by `web/scripts/og.md`, so a shared link looks like
+   * the page it points at rather than like a stock template.
+   */
+  image: string
 }
 
 const esc = (s: string) =>
@@ -87,6 +93,7 @@ function pages(): Page[] {
     title: 'Werkhaus — find out if a business is worth building',
     description:
       'Describe a business. Eight employees spend fourteen minutes on the rivals, one price you can defend and a money model with every guess labelled. From €12 a month.',
+    image: '/og/og-default.png',
     body: `<div class="mx-auto max-w-3xl px-5 py-14"><h1 class="display text-[2.4rem] leading-[1.06]">Describe a business. Find out if it&rsquo;s worth building.</h1><p class="text-ink-soft mt-6 text-[1.0625rem] leading-[1.65]">You leave with a folder of ordinary files. Build it in Lovable, Base44, Cursor, or hand it to a developer.</p></div>`,
     jsonLd: [
       {
@@ -96,6 +103,7 @@ function pages(): Page[] {
         url: SITE,
         description:
           'Decides whether a business is worth building, and hands over the brief.',
+        sameAs: ['https://github.com/Proto-ventures/Werkhaus'],
       },
       {
         '@context': 'https://schema.org',
@@ -113,6 +121,7 @@ function pages(): Page[] {
     route: GUIDE_INDEX.slug,
     title: GUIDE_INDEX.title,
     description: GUIDE_INDEX.description,
+    image: '/og/og-for.png',
     body: `<div class="mx-auto max-w-5xl px-5 py-14"><h1 class="display text-[2.4rem] leading-[1.1]">${esc(
       GUIDE_INDEX.h1,
     )}</h1><ul class="mt-10">${GUIDES.map(
@@ -138,6 +147,7 @@ function pages(): Page[] {
     route: `for/${guide.slug}`,
     title: guide.title,
     description: guide.description,
+    image: `/og/og-${guide.slug}.png`,
     body: guideBody(guide),
     jsonLd: [
       {
@@ -173,6 +183,7 @@ function pages(): Page[] {
     title: 'Your companies — Werkhaus',
     description: `Every company you have started, and what each one has filed. From €${studio?.price} a month.`,
     body: '',
+    image: '/og/og-default.png',
     noindex: true,
   }
 
@@ -202,9 +213,19 @@ function render(shell: string, page: Page): string {
     `<meta property="og:title" content="${esc(page.title)}" />`,
     `<meta property="og:description" content="${esc(page.description)}" />`,
     `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${SITE}${page.image}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="${esc(page.title)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:image" content="${SITE}${page.image}" />`,
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
+    `<link rel="manifest" href="/site.webmanifest" />`,
+    // The paper colour, so a browser chrome or an OS launcher does not frame
+    // the page in its own default grey.
+    `<meta name="theme-color" content="#fbfbfb" media="(prefers-color-scheme: light)" />`,
+    `<meta name="theme-color" content="#10141f" media="(prefers-color-scheme: dark)" />`,
     ...(page.jsonLd ?? []).map(
       (data) =>
         `<script type="application/ld+json">${JSON.stringify(data).replace(
@@ -219,6 +240,162 @@ function render(shell: string, page: Page): string {
   return shell
     .replace(/<title>[^<]*<\/title>/, head)
     .replace('<div id="root"></div>', `<div id="root">${page.body}</div>`)
+}
+
+/**
+ * The site, written for something that reads rather than crawls.
+ *
+ * `llms.txt` is the convention a model or an agent looks for when it wants the
+ * shape of a site without parsing the site: a name, a summary, and links with
+ * a sentence each. `llms-full.txt` is the same thing with the content inlined,
+ * for the case where fetching sixteen pages is not worth it.
+ *
+ * Both are generated from the same data the pages are, so the version an agent
+ * reads and the version a person reads cannot disagree — which is the failure
+ * these files usually have, being hand-written once and then forgotten.
+ */
+function llms(): string {
+  const price = PRICING.map(
+    (t) =>
+      `- **${t.label}** — ${t.price === null ? 'free' : `€${t.price}/month, €${t.year}/year`}. ${t.pitch}`,
+  ).join('\n')
+
+  return `# Werkhaus
+
+> Describe a business and find out whether it is worth building. Eight AI
+> employees spend about fourteen minutes on the part you cannot vibe code — the
+> rivals and what they charge, one price you can defend, a money model with
+> every guess labelled, and where the first customers already are — and hand
+> back four ordinary markdown files you own.
+
+Werkhaus is upstream of the app builders. It does not build the app: you take
+the brief to Lovable, Base44, Cursor or a developer. Every claim in what it
+produces carries a mark saying where it came from — \`sourced\` (a page that was
+actually opened), \`inferred\` (reasoned from something sourced) or
+\`assumption\` (a guess, labelled as one). A critic named Vera runs at the end
+of every shift and files objections that name the claim and what would settle it.
+
+## What it will not do
+
+- It is not a builder. It works out what to build; building it is somebody else.
+- It does not validate anything. Competitor pricing makes a price defensible; only a customer validates one.
+- It is not a launch in an hour, and not a replacement for a co-founder.
+- It never contacts customers. Outreach is drafted, never sent.
+- Today a shift ends with the documents. The landing-page builder is not shipped yet.
+
+## Pricing
+
+${price}
+
+A shift that filed nothing is not charged. Stopping takes effect in under two
+seconds and keeps everything already done. The folder is plain markdown on every
+plan, including the free one.
+
+## Pages
+
+- [Werkhaus](${SITE}/): the product, a worked example, the price list.
+- [What is worth building](${SITE}/for/): one page per business, each naming what a shift checks first.
+${GUIDES.map((g) => `- [${g.title}](${SITE}/for/${g.slug}/): ${g.description}`).join('\n')}
+`
+}
+
+function llmsFull(): string {
+  const guides = GUIDES.map(
+    (g) => `## ${g.h1}
+
+${SITE}/for/${g.slug}/
+
+For ${g.audience}.
+
+What a shift opens first for this one:
+
+${g.checks.map((c) => `1. ${c}`).join('\n')}
+
+The number it turns on: ${g.money}
+
+Starting idea: "${g.idea}"
+`,
+  ).join('\n')
+
+  return `${llms()}
+---
+
+# Every page, in full
+
+${guides}`
+}
+
+function manifest(): string {
+  return JSON.stringify(
+    {
+      name: 'Werkhaus',
+      short_name: 'Werkhaus',
+      description:
+        'Describe a business. Find out if it is worth building.',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      lang: 'en',
+      // The paper and the ink, from index.css. A manifest that disagrees with
+      // the stylesheet shows as a flash of the wrong colour on launch.
+      background_color: '#fbfbfb',
+      theme_color: '#fbfbfb',
+      icons: [
+        { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      ],
+    },
+    null,
+    2,
+  )
+}
+
+/**
+ * Crawlers that read for a model, named and allowed on purpose.
+ *
+ * The default when a site says nothing is that each of these decides for
+ * itself, and several read a bare `User-agent: *` as permission anyway. Being
+ * explicit is the difference between being quoted correctly by an assistant and
+ * being described from a third-party summary — which, for this product, has
+ * already happened to our competitors' prices and to us.
+ */
+const AGENTS = [
+  'GPTBot',
+  'OAI-SearchBot',
+  'ChatGPT-User',
+  'ClaudeBot',
+  'Claude-User',
+  'Claude-SearchBot',
+  'anthropic-ai',
+  'PerplexityBot',
+  'Perplexity-User',
+  'Google-Extended',
+  'Applebot',
+  'Applebot-Extended',
+  'CCBot',
+  'cohere-ai',
+  'meta-externalagent',
+  'Amazonbot',
+  'Bingbot',
+  'DuckDuckBot',
+  'YandexBot',
+]
+
+function robots(): string {
+  const named = AGENTS.map(
+    (agent) => `User-agent: ${agent}\nAllow: /\nDisallow: /c/\nDisallow: /companies\n`,
+  ).join('\n')
+  return `# Werkhaus. Read it, quote it, summarise it — the pages are the product's
+# argument and we would rather they were repeated accurately than not at all.
+# /c/ and /companies are somebody's private workspace, not content.
+
+User-agent: *
+Allow: /
+Disallow: /c/
+Disallow: /companies
+
+${named}
+Sitemap: ${SITE}/sitemap.xml
+`
 }
 
 function sitemap(list: Page[]): string {
@@ -256,12 +433,14 @@ export function seo(): Plugin {
       }
 
       await writeFile(path.join(out, 'sitemap.xml'), sitemap(list))
-      await writeFile(
-        path.join(out, 'robots.txt'),
-        `User-agent: *\nAllow: /\nDisallow: /c/\nDisallow: /companies\n\nSitemap: ${SITE}/sitemap.xml\n`,
-      )
+      await writeFile(path.join(out, 'robots.txt'), robots())
+      await writeFile(path.join(out, 'site.webmanifest'), manifest())
+      await writeFile(path.join(out, 'llms.txt'), llms())
+      await writeFile(path.join(out, 'llms-full.txt'), llmsFull())
 
-      this.info(`seo: ${list.length} pages, sitemap and robots.txt`)
+      this.info(
+        `seo: ${list.length} pages, sitemap, robots, manifest, llms.txt`,
+      )
     },
   }
 }
