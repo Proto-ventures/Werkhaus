@@ -5,6 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Werkhaus</title>
+    <!-- Before the first paint, not after. The app decides the theme once it
+         mounts, which is a frame or two too late: a reader who asked for dark
+         would get a flash of full-strength white first, which is the single
+         most unpleasant thing a page can do to them. Same storage key and same
+         rule as next-themes, so the two cannot disagree. -->
+    <script>
+      try {
+        var stored = localStorage.getItem('theme')
+        var dark =
+          stored === 'dark' ||
+          ((!stored || stored === 'system') &&
+            matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -22,6 +22,11 @@
 /* Ink on paper, hard rules, flat colour. This is the design; the .dark block
    below is the same one after dark, and light stays the default. */
 :root {
+  /* Scrollbars, form controls and the caret are drawn by the browser, not by
+     us. Without this they stay light on a dark page — the one part of the
+     product that would ignore the theme. */
+  color-scheme: light;
+
   --radius: 0rem;
 
   --paper: #fbfbfb;
@@ -104,6 +109,8 @@
    4.5:1 against both grounds, same as the light one.
    --------------------------------------------------------------------------- */
 .dark {
+  color-scheme: dark;
+
   /* The same two painters, the same place, a different hour: Van Gogh's
      Starry Night (June 1889, the view from his asylum window at Saint-Remy)
      and Millet's Starry Night (c.1850-65), which Van Gogh may have seen in

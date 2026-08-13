@@ -16,17 +16,18 @@ import { Studio } from '@/routes/Studio'
 
 export default function App() {
   return (
-    // Light is the design and stays the default, so no system sniffing: a
-    // first visit looks the way the page was drawn, and dark is a choice the
-    // reader makes and we then remember.
+    // A first visit takes the hour from the browser: somebody who has told
+    // their machine they want dark should not have to tell us as well. The
+    // toggle then pins an explicit choice, which outranks the system setting
+    // from then on — the setting is a default, not a rule.
     //
     // disableTransitionOnChange is deliberately absent: the toggle runs the
     // swap inside a view transition, and that prop exists to suppress exactly
     // that.
     <ThemeProvider
       attribute="class"
-      defaultTheme="light"
-      enableSystem={false}
+      defaultTheme="system"
+      enableSystem
     >
       {/* Served from the root when FastAPI serves it, and from a subpath when
           the marketing page is published on its own. `BASE_URL` is whatever
