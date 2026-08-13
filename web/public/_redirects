@@ -1,0 +1,10 @@
+# Netlify serves this build as static files, so a route that only exists inside
+# the router is a 404 on a cold load — /companies is linked from the front page
+# and was returning one. Hand every unmatched path to the app and let the router
+# decide, with a 200 rather than a redirect so the URL the visitor typed is the
+# URL they keep.
+#
+# Safe as a catch-all because nothing else is served from this origin: the API
+# runs elsewhere and the client is origin-relative only in development, where
+# Vite proxies /api itself.
+/*  /index.html  200
