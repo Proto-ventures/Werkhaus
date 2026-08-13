@@ -354,6 +354,14 @@
   }
 }
 
+/* The logo is drawn artwork — greyscale, with a gradient — so it cannot follow
+   the token palette the way everything else does. After dark it is inverted
+   rather than swapped for a second file: the two halves keep their relationship
+   to each other, and there is one asset to keep in step instead of two. */
+.dark .logo-invert {
+  filter: invert(1);
+}
+
 /* The one motion in the product: a working employee breathes. */
 @keyframes werk-pulse {
   0%,

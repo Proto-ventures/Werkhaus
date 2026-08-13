@@ -103,6 +103,7 @@ function pages(): Page[] {
         url: SITE,
         description:
           'Decides whether a business is worth building, and hands over the brief.',
+        logo: `${SITE}/icon-512.png`,
         sameAs: ['https://github.com/Proto-ventures/Werkhaus'],
       },
       {
@@ -222,6 +223,7 @@ function render(shell: string, page: Page): string {
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
     `<link rel="manifest" href="/site.webmanifest" />`,
+    `<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />`,
     // The paper colour, so a browser chrome or an OS launcher does not frame
     // the page in its own default grey.
     `<meta name="theme-color" content="#fbfbfb" media="(prefers-color-scheme: light)" />`,
@@ -342,6 +344,11 @@ function manifest(): string {
       theme_color: '#fbfbfb',
       icons: [
         { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+        // Padded onto paper rather than transparent: a launcher that adds its
+        // own background gets the one we chose instead of black.
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
       ],
     },
     null,

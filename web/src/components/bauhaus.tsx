@@ -18,6 +18,7 @@
  */
 
 import { cn } from '@/lib/utils'
+import wordmark from '@/assets/werkhaus-full.svg'
 
 export type Shape = 'circle' | 'square' | 'triangle' | 'ring'
 export type Tone = 'blue' | 'yellow' | 'red' | 'ink' | 'faint'
@@ -73,11 +74,18 @@ export function Mark({
  */
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('flex items-baseline gap-2', className)}>
-      <span aria-hidden className="mark mark-square bg-blue translate-y-[-1px]" />
-      <span className="font-mono text-[0.9375rem] tracking-[0.16em] uppercase">
-        werkhaus
-      </span>
-    </span>
+    // The drawn mark, with the name still in the accessible tree — an <img>
+    // alt is the only thing a screen reader or a text-only client gets, and
+    // the logo is the one place the company's name appears in the masthead.
+    <img
+      src={wordmark}
+      alt="Werkhaus"
+      width={111}
+      height={22}
+      // Greyscale artwork with a gradient in it, so there is no token to hand
+      // it. Inverting keeps the relationship between the two halves and is the
+      // one place in the product where a filter beats a second asset.
+      className={cn('logo-invert h-[1.35rem] w-auto', className)}
+    />
   )
 }
